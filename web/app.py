@@ -27,6 +27,11 @@ from core.critical_analysis import CriticalAnalysisEngine
 from core.podcast_deep_analyzer import PodcastDeepAnalyzer
 from core.editorial_profiles import EditorialProfilesManager
 from core.experimentation import ExperimentationLab
+from services.service_registry import ServiceRegistry
+from services.orchestration.langgraph_engine import IASOrchestrationEngine
+from services.semantic_memory.vector_memory import VectorMemoryService
+from services.model_gateway.gateway import ModelGatewayService
+from services.video_analysis.yt_metadata import VideoMetadataService
 
 app = FastAPI(
     title="VIAGEM / IAS - Central de Inteligência de Conteúdo",
@@ -52,6 +57,33 @@ pipeline_mgr = ResearchPipelineManager(memory=memory)
 critical_analysis_eng = CriticalAnalysisEngine(memory=memory)
 podcast_analyzer = PodcastDeepAnalyzer(memory=memory)
 exp_lab = ExperimentationLab(memory=memory)
+
+# Serviços de Infraestrutura Open Source
+service_registry = ServiceRegistry()
+orchestration_engine = IASOrchestrationEngine()
+semantic_memory = VectorMemoryService()
+model_gateway = ModelGatewayService()
+video_metadata_svc = VideoMetadataService()
+
+class StartWorkflowRequest(BaseModel):
+    task_id: str
+    target_id: str
+    niche: str = "futebol"
+
+class SemanticSearchRequest(BaseModel):
+    query: str
+    category: Optional[str] = None
+    top_k: int = 5
+
+class UpdateStatusRequest(BaseModel):
+    video_id: str
+    new_status: str
+    notes: Optional[str] = None
+
+class CompletionRequest(BaseModel):
+    prompt: str
+    task: str = "critical_analysis"
+    preferred_model: Optional[str] = None
 
 # ------------------------------------------------------------------------------
 # 1. VISÃO GERAL & KPIs (OPERACIONAL)
@@ -314,6 +346,97 @@ def get_memory_stats():
 @app.get("/api/memory/nodes")
 def list_knowledge_nodes(node_type: Optional[str] = None):
     return memory.query_knowledge_nodes(node_type=node_type)
+
+# ------------------------------------------------------------------------------
+# 11. SERVIÇOS & INFRAESTRUTURA OPEN SOURCE (LangGraph, pgvector, LiteLLM, yt-dlp)
+# ------------------------------------------------------------------------------
+@app.get("/api/services/status")
+def get_services_status():
+    """Retorna telemetria e estado operacional das 7 tecnologias essenciais."""
+    return service_registry.check_all()
+
+@app.get("/api/services/costs")
+def get_services_costs():
+    """Retorna métricas de consumo de tokens e custos estimados via LiteLLM."""
+    return model_gateway.get_usage_metrics()
+
+@app.get("/api/orchestration/tasks")
+def list_orchestration_tasks():
+    """Lista todos os fluxos e tarefas registradas no LangGraph."""
+    return orchestration_engine.list_all_tasks()
+
+@app.get("/api/orchestration/task/{task_id}")
+def get_orchestration_task(task_id: str):
+    """Retorna estado e progresso das 12 etapas de uma tarefa específica."""
+    state = orchestration_engine.get_task_state(task_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    return state
+
+@app.post("/api/orchestration/start")
+def start_orchestration_flow(req: StartWorkflowRequest):
+    """Inicia o pipeline LangGraph de 12 etapas com checkpoints."""
+    state = orchestration_engine.start_workflow(
+        task_id=req.task_id,
+        target_id=req.target_id,
+        niche=req.niche
+    )
+    return state
+
+@app.post("/api/orchestration/approve/{task_id}")
+def approve_orchestration_task(task_id: str):
+    """Aprova a etapa 11 (revisão humana) e conclui a distribuição (etapa 12)."""
+    resumed = orchestration_engine.approve_and_resume(task_id)
+    if not resumed:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada para aprovação")
+    return resumed
+
+@app.post("/api/semantic/search")
+def search_semantic_memory(req: SemanticSearchRequest):
+    """Busca por significado e contexto vetorial (distância de cosseno)."""
+    results = semantic_memory.search_similar(
+        query=req.query,
+        category=req.category,
+        top_k=req.top_k
+    )
+    return {
+        "query": req.query,
+        "category": req.category,
+        "count": len(results),
+        "results": results
+    }
+
+@app.get("/api/semantic/stats")
+def get_semantic_stats():
+    """Retorna estatísticas da memória semântica vetorial."""
+    return semantic_memory.get_stats()
+
+@app.get("/api/approval/queue")
+def get_approval_queue(status: Optional[str] = None):
+    """Retorna vídeos na máquina de estados de catalogação e aprovação de direitos."""
+    return video_metadata_svc.list_by_status(status=status)
+
+@app.post("/api/approval/update-status")
+def update_video_status(req: UpdateStatusRequest):
+    """Avança o status de um vídeo na máquina de estados (catalogado -> aprovado)."""
+    res = video_metadata_svc.advance_status(
+        video_id=req.video_id,
+        new_status=req.new_status,
+        notes=req.notes
+    )
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error"))
+    return res
+
+@app.post("/api/gateway/completion")
+def model_gateway_completion(req: CompletionRequest):
+    """Executa requisição ao gateway LiteLLM com fallback automático multi-provedor."""
+    messages = [{"role": "user", "content": req.prompt}]
+    return model_gateway.completion(
+        messages=messages,
+        task=req.task,
+        preferred_model=req.preferred_model
+    )
 
 # Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"

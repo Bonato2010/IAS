@@ -233,6 +233,7 @@
       <li class="nav-item" onclick="navigate('production')"><i class="fa-solid fa-scissors"></i> Produção de Shorts</li>
       <li class="nav-item" onclick="navigate('drive')"><i class="fa-brands fa-google-drive"></i> Google Drive 5 TB</li>
       <li class="nav-item" onclick="navigate('channels')"><i class="fa-solid fa-tower-broadcast"></i> Os 20 Canais</li>
+      <li class="nav-item" onclick="navigate('infrastructure')"><i class="fa-solid fa-server"></i> Infra & Serviços Open Source</li>
     </ul>
 
     <!-- DRIVE WIDGET NO SIDEBAR -->
@@ -585,6 +586,138 @@
         <!-- Renderizado dinamicamente -->
       </div>
     </section>
+
+    <!-- 10. VIEW: INFRAESTRUTURA & SERVIÇOS OPEN SOURCE -->
+    <section id="view-infrastructure" class="view-pane hidden">
+      <!-- 1. CARDS DE DIAGNÓSTICO EM TEMPO REAL -->
+      <div class="panel-header" style="margin-bottom:12px;">
+        <div>
+          <h3 style="font-size:1.05rem; font-weight:600;"><i class="fa-solid fa-microchip"></i> Telemetria dos 7 Serviços Essenciais</h3>
+          <p style="font-size:0.82rem; color:var(--text-secondary);">Diagnóstico em tempo real, versões instaladas e modos de contingência (fallback).</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="loadInfrastructure()"><i class="fa-solid fa-arrows-rotate"></i> Atualizar Status</button>
+      </div>
+
+      <div class="agents-grid" id="services-health-grid" style="margin-bottom:20px;">
+        <!-- Injetado dinamicamente -->
+      </div>
+
+      <!-- 2. ORQUESTRAÇÃO LANGGRAPH (12 ETAPAS) -->
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-header">
+          <span class="panel-title"><i class="fa-solid fa-diagram-project"></i> Orquestração de Fluxos — LangGraph (12 Etapas)</span>
+        </div>
+        <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:14px;">
+          Fluxo de trabalho persistente com checkpoints em SQLite e interrupção na etapa 11 para validação e aprovação humana.
+        </p>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:10px; margin-bottom:14px;">
+          <input type="text" id="lg-task-id" class="input-field" placeholder="ID da Tarefa (ex: task_001)">
+          <input type="text" id="lg-target-id" class="input-field" placeholder="ID ou URL do Vídeo">
+          <select id="lg-niche" class="input-field">
+            <option value="futebol">Futebol & Esportes</option>
+            <option value="podcasts">Podcasts</option>
+            <option value="curiosidades">Curiosidades</option>
+            <option value="historia">História & Documentários</option>
+          </select>
+          <button class="btn btn-primary" onclick="startLangGraphFlow()"><i class="fa-solid fa-play"></i> Iniciar Grafo</button>
+        </div>
+
+        <div class="data-table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Tarefa</th>
+                <th>Alvo / Vídeo</th>
+                <th>Nicho</th>
+                <th>Etapa Atual</th>
+                <th>Status</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody id="lg-tasks-tbody">
+              <tr><td colspan="6" style="text-align:center; padding:16px; color:var(--text-tertiary);">Carregando fluxos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 3. MEMÓRIA SEMÂNTICA (pgvector) & GOVERNANÇA DE VÍDEOS -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:20px;">
+        <!-- Memória Semântica -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title"><i class="fa-solid fa-vector-square"></i> Memória Semântica (pgvector)</span>
+          </div>
+          <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">
+            Pesquisa contextual por significado usando distância de cosseno.
+          </p>
+          <div style="display:flex; gap:8px; margin-bottom:12px;">
+            <input type="text" id="sem-query-input" class="input-field" placeholder="Ex: ganchos de reviravolta ou polêmica...">
+            <button class="btn btn-secondary" onclick="runSemanticSearch()"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button>
+          </div>
+          <div id="sem-results-list" style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+            <div style="color:var(--text-tertiary); font-size:0.8rem; text-align:center; padding:20px;">Digite uma consulta para pesquisar na memória vetorial.</div>
+          </div>
+        </div>
+
+        <!-- LiteLLM Consumo & Custos -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title"><i class="fa-solid fa-coins"></i> Gateway de Modelos & Custos (LiteLLM)</span>
+          </div>
+          <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px;">
+            Controle de consumo, tokens e custos em USD de chamadas a provedores de IA.
+          </p>
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:14px;">
+            <div style="background:var(--bg-surface-elevated); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Chamadas</div>
+              <strong id="llm-total-calls" style="font-size:1.1rem;">0</strong>
+            </div>
+            <div style="background:var(--bg-surface-elevated); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Tokens</div>
+              <strong id="llm-total-tokens" style="font-size:1.1rem;">0</strong>
+            </div>
+            <div style="background:var(--bg-surface-elevated); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Custo Est.</div>
+              <strong id="llm-total-cost" style="font-size:1.1rem; color:var(--accent-emerald);">$0.00</strong>
+            </div>
+          </div>
+          <div class="data-table-wrapper" style="max-height:140px; overflow-y:auto;">
+            <table>
+              <thead><tr><th>Modelo</th><th>Chamadas</th><th>Tokens</th><th>Custo</th></tr></thead>
+              <tbody id="llm-models-tbody">
+                <tr><td colspan="4" style="text-align:center; padding:10px; color:var(--text-tertiary);">Sem dados de consumo.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. MÁQUINA DE ESTADOS & APROVAÇÃO DE VÍDEOS (yt-dlp) -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title"><i class="fa-solid fa-clipboard-check"></i> Fila de Governança e Direitos Autorais (yt-dlp)</span>
+          <span class="badge badge-primary">catalogado → acessível → autorizado → analisado → aprovado</span>
+        </div>
+        <div class="data-table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID do Vídeo</th>
+                <th>Título</th>
+                <th>Canal Fonte</th>
+                <th>Duração</th>
+                <th>Status Atual</th>
+                <th>Ações de Transição</th>
+              </tr>
+            </thead>
+            <tbody id="lifecycle-tbody">
+              <tr><td colspan="6" style="text-align:center; padding:16px; color:var(--text-tertiary);">Carregando fila...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -606,7 +739,8 @@
         critic: 'Módulo de Análise Crítica',
         production: 'Produção de Shorts & Podcasts',
         drive: 'Google Drive 5 TB — Repositório Central',
-        channels: 'Administração dos 20 Canais'
+        channels: 'Administração dos 20 Canais',
+        infrastructure: 'Infraestrutura & Serviços Open Source'
       };
       if (titles[viewName]) document.getElementById('current-page-title').innerText = titles[viewName];
 
@@ -615,6 +749,7 @@
       if (viewName === 'intelligence') loadIntelligence();
       if (viewName === 'production') loadProductionCuts();
       if (viewName === 'channels') loadChannels();
+      if (viewName === 'infrastructure') loadInfrastructure();
     }
 
     async function refreshCurrentView() {
@@ -875,6 +1010,187 @@
           </div>
         `;
       });
+    }
+
+    async function loadInfrastructure() {
+      try {
+        // 1. Status dos Serviços
+        const res = await fetch('/api/services/status');
+        const data = await res.json();
+        const grid = document.getElementById('services-health-grid');
+        grid.innerHTML = '';
+
+        for (const [key, svc] of Object.entries(data.services || {})) {
+          const isOnline = svc.status === 'ONLINE';
+          const isFallback = svc.status === 'FALLBACK_ACTIVE';
+          const badgeClass = isOnline ? 'badge-success' : (isFallback ? 'badge-warning' : 'badge-danger');
+          const statusText = isOnline ? 'Operacional' : (isFallback ? 'Fallback Ativo' : 'Offline');
+
+          grid.innerHTML += `
+            <div class="agent-card-tile">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="badge ${badgeClass}">${statusText}</span>
+                <span style="font-size:0.75rem; color:var(--text-tertiary);">v${svc.version || '1.0'}</span>
+              </div>
+              <strong style="font-size:0.95rem; margin-top:6px;">${svc.name}</strong>
+              <p style="font-size:0.78rem; color:var(--text-secondary); margin:4px 0;">${svc.role}</p>
+              <div style="font-size:0.72rem; color:var(--text-tertiary); background:rgba(0,0,0,0.2); padding:6px; border-radius:4px;">
+                ${svc.notes || 'Configuração ativa'}
+              </div>
+            </div>
+          `;
+        }
+
+        // 2. Tarefas LangGraph
+        await loadLangGraphTasks();
+
+        // 3. Custos LiteLLM
+        const cRes = await fetch('/api/services/costs');
+        const cData = await cRes.json();
+        document.getElementById('llm-total-calls').innerText = cData.total_calls || 0;
+        document.getElementById('llm-total-tokens').innerText = (cData.total_tokens || 0).toLocaleString();
+        document.getElementById('llm-total-cost').innerText = '$' + (cData.total_cost_usd || 0).toFixed(4);
+
+        const mBody = document.getElementById('llm-models-tbody');
+        mBody.innerHTML = '';
+        if (!cData.by_model || cData.by_model.length === 0) {
+          mBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:10px; color:var(--text-tertiary);">Sem chamadas registradas.</td></tr>`;
+        } else {
+          cData.by_model.forEach(m => {
+            mBody.innerHTML += `<tr><td><strong>${m.model}</strong></td><td>${m.calls}</td><td>${m.tokens.toLocaleString()}</td><td>$${m.cost_usd.toFixed(4)}</td></tr>`;
+          });
+        }
+
+        // 4. Fila de Governança
+        await loadLifecycleQueue();
+
+      } catch (err) {
+        console.error("Erro ao carregar infraestrutura:", err);
+      }
+    }
+
+    async function loadLangGraphTasks() {
+      const res = await fetch('/api/orchestration/tasks');
+      const tasks = await res.json();
+      const tbody = document.getElementById('lg-tasks-tbody');
+      tbody.innerHTML = '';
+      if (!tasks || tasks.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:16px; color:var(--text-tertiary);">Nenhum fluxo em andamento. Inicie um acima!</td></tr>`;
+        return;
+      }
+      tasks.forEach(t => {
+        const isPaused = t.status === 'PAUSED_FOR_REVIEW';
+        const isDone = t.status === 'COMPLETED';
+        const statusBadge = isDone ? 'badge-success' : (isPaused ? 'badge-warning' : 'badge-primary');
+
+        let actionBtn = `<span style="color:var(--text-tertiary); font-size:0.75rem;">—</span>`;
+        if (isPaused) {
+          actionBtn = `<button class="btn btn-primary btn-sm" onclick="approveWorkflowTask('${t.task_id}')"><i class="fa-solid fa-check"></i> Aprovar Edição</button>`;
+        }
+
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${t.task_id}</strong></td>
+            <td>${t.target_id || '—'}</td>
+            <td><span class="badge badge-primary">${t.niche}</span></td>
+            <td><code>${t.current_step}</code></td>
+            <td><span class="badge ${statusBadge}">${t.status}</span></td>
+            <td>${actionBtn}</td>
+          </tr>
+        `;
+      });
+    }
+
+    async function startLangGraphFlow() {
+      const task_id = document.getElementById('lg-task-id').value.trim() || ('task_' + Date.now().toString().slice(-4));
+      const target_id = document.getElementById('lg-target-id').value.trim() || 'video_demo_01';
+      const niche = document.getElementById('lg-niche').value;
+
+      alert(`Disparando Grafo LangGraph para tarefa ${task_id}...`);
+      const res = await fetch('/api/orchestration/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id, target_id, niche })
+      });
+      const data = await res.json();
+      alert(`Fluxo avançou até: ${data.current_step} (Status: ${data.status})`);
+      await loadLangGraphTasks();
+    }
+
+    async function approveWorkflowTask(taskId) {
+      const res = await fetch(`/api/orchestration/approve/${taskId}`, { method: 'POST' });
+      const data = await res.json();
+      alert(`Tarefa ${taskId} aprovada e finalizada! Status: ${data.status}`);
+      await loadLangGraphTasks();
+    }
+
+    async function runSemanticSearch() {
+      const query = document.getElementById('sem-query-input').value.trim();
+      if (!query) return alert("Digite um termo ou conceito para busca semântica.");
+
+      const res = await fetch('/api/semantic/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, top_k: 4 })
+      });
+      const data = await res.json();
+      const list = document.getElementById('sem-results-list');
+      list.innerHTML = '';
+      if (!data.results || data.results.length === 0) {
+        list.innerHTML = `<div style="text-align:center; padding:16px; color:var(--text-tertiary);">Nenhum resultado semântico encontrado.</div>`;
+        return;
+      }
+      data.results.forEach(r => {
+        const scorePct = Math.round(r.similarity_score * 100);
+        list.innerHTML += `
+          <div style="background:var(--bg-surface-elevated); padding:10px; border-radius:6px; border:1px solid var(--border-subtle);">
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:4px;">
+              <span class="badge badge-primary">${r.category}</span>
+              <strong style="color:var(--accent-emerald);">Similaridade: ${scorePct}%</strong>
+            </div>
+            <p style="font-size:0.82rem; margin:0; color:var(--text-primary);">${r.text}</p>
+          </div>
+        `;
+      });
+    }
+
+    async function loadLifecycleQueue() {
+      const res = await fetch('/api/approval/queue');
+      const list = await res.json();
+      const tbody = document.getElementById('lifecycle-tbody');
+      tbody.innerHTML = '';
+      if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:16px; color:var(--text-tertiary);">Fila vazia. Adicione novas referências no catálogo.</td></tr>`;
+        return;
+      }
+      list.forEach(item => {
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${item.video_id}</strong></td>
+            <td>${item.title}</td>
+            <td>${item.channel_name}</td>
+            <td>${item.duration_sec}s</td>
+            <td><span class="badge badge-primary">${item.status}</span></td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="advanceLifecycleStatus('${item.video_id}', 'autorizado')"><i class="fa-solid fa-stamp"></i> Autorizar</button>
+              <button class="btn btn-primary btn-sm" onclick="advanceLifecycleStatus('${item.video_id}', 'aprovado_para_produção')"><i class="fa-solid fa-check"></i> Produção</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    async function advanceLifecycleStatus(videoId, newStatus) {
+      const res = await fetch('/api/approval/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video_id: videoId, new_status: newStatus, notes: "Aprovado via Dashboard IAS" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Status do vídeo ${videoId} atualizado para '${newStatus}'!`);
+        await loadLifecycleQueue();
+      }
     }
 
     async function syncDriveFolders() {
