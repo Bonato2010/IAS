@@ -26,19 +26,18 @@ class CentralMemory:
                        source_ref_id: Optional[int] = None, metadata: Optional[Dict] = None) -> int:
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            # Busca ID da categoria
             cursor.execute("SELECT id FROM categories WHERE slug = ?", (category_slug,))
             row = cursor.fetchone()
             cat_id = row["id"] if row else 1
 
             cursor.execute("""
                 INSERT INTO content_patterns (
-                    category_id, pattern_type, title, structure_template,
+                    category_id, archetype, hook_type, pattern_type, title, structure_template,
                     hook_formula, ideal_duration_seconds, typical_retention_rate,
                     source_reference_id, metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                cat_id, pattern_type, title, structure_template,
+                cat_id, category_slug, pattern_type, pattern_type, title, structure_template,
                 hook_formula, ideal_duration, typical_retention,
                 source_ref_id, json.dumps(metadata or {}, ensure_ascii=False)
             ))
@@ -59,8 +58,8 @@ class CentralMemory:
                 query += " AND c.slug = ?"
                 params.append(category_slug)
             if pattern_type:
-                query += " AND cp.pattern_type = ?"
-                params.append(pattern_type)
+                query += " AND (cp.pattern_type = ? OR cp.hook_type = ?)"
+                params.extend([pattern_type, pattern_type])
             query += " ORDER BY cp.typical_retention_rate DESC LIMIT ?"
             params.append(limit)
 

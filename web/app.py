@@ -1,7 +1,7 @@
 """
-Servidor REST API e Interface da Central Inteligente de Shorts (FastAPI).
-Plataforma Multi-Skill AI Content Company: 10 Agentes Especializados, 20 Canais,
-Google Drive 5 TB, Deep Podcast Analyzer, Biblioteca 50.000+ e Perfis Editoriais.
+Servidor REST API e Interface da Central Inteligente de Conteúdo (VIAGEM / IAS).
+Plataforma Multi-Skill: 10 Agentes Especializados de Produção, Central Multiagente de Pesquisadores,
+Pipeline de Pesquisa e Aprendizado (200.000+ Shorts), Módulo de Análise Crítica, Google Drive 5 TB e 20 Canais.
 """
 import os
 import json
@@ -20,23 +20,25 @@ from core.intelligence_engine import IntelligenceEngine
 from core.script_generator import ScriptGenerator
 from memory.central_memory import CentralMemory
 from agents.company import ContentCompany
+from agents.research_agents import ResearchOrchestrator
 from core.large_scale_cataloger import LargeScaleCataloger
+from core.research_pipeline import ResearchPipelineManager
+from core.critical_analysis import CriticalAnalysisEngine
 from core.podcast_deep_analyzer import PodcastDeepAnalyzer
 from core.editorial_profiles import EditorialProfilesManager
 from core.experimentation import ExperimentationLab
 
 app = FastAPI(
-    title="Central Inteligente de Shorts - Multi-Skill AI Content Company",
-    description="Empresa de Inteligência Artificial Multimodal com 10 Especialistas, 20 Canais e Drive 5 TB",
-    version="2.5.0"
+    title="VIAGEM / IAS - Central de Inteligência de Conteúdo",
+    description="Plataforma de IA com Central Multiagente de Pesquisa, Análise Crítica e Produção em Escala (200.000+ Shorts) com Drive 5 TB",
+    version="3.0.0"
 )
 
-# Inicializa banco de dados e perfis
+# Inicializações
 init_db()
 profiles_mgr = EditorialProfilesManager()
 profiles_mgr.init_profiles()
 
-# Inicializa gerenciadores e motores
 gdrive_mgr = GDriveManager()
 channel_mgr = ChannelManager()
 cataloger = ReferenceCataloger()
@@ -44,16 +46,18 @@ intelligence_engine = IntelligenceEngine()
 script_gen = ScriptGenerator()
 memory = CentralMemory()
 company = ContentCompany(memory=memory)
+research_orchestrator = ResearchOrchestrator(memory=memory)
 large_cataloger = LargeScaleCataloger(memory=memory)
+pipeline_mgr = ResearchPipelineManager(memory=memory)
+critical_analysis_eng = CriticalAnalysisEngine(memory=memory)
 podcast_analyzer = PodcastDeepAnalyzer(memory=memory)
 exp_lab = ExperimentationLab(memory=memory)
 
 # ------------------------------------------------------------------------------
-# 1. VISÃO GERAL & KPIs
+# 1. VISÃO GERAL & KPIs (OPERACIONAL)
 # ------------------------------------------------------------------------------
 @app.get("/api/overview")
 def get_overview_kpis():
-    """Retorna o painel consolidado de métricas e status dos 20 canais e Drive 5TB."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM video_references")
@@ -81,12 +85,13 @@ def get_overview_kpis():
         total_published = cursor.fetchone()[0]
 
     drive_quota = gdrive_mgr.get_storage_quota()
+    pipeline_status = pipeline_mgr.get_pipeline_metrics()
 
     return {
         "kpis": {
             "cataloged_references": total_cataloged,
-            "target_references": 50000,
-            "catalog_progress_percent": round((total_cataloged / 50000) * 100, 2),
+            "target_references": 200000,
+            "catalog_progress_percent": round((total_cataloged / 200000.0) * 100, 3),
             "content_patterns_mined": total_patterns,
             "scripts_generated": total_scripts,
             "podcast_cuts_evaluated": total_cuts,
@@ -95,8 +100,10 @@ def get_overview_kpis():
             "videos_in_production": in_production,
             "videos_published": total_published,
             "active_channels": 20,
-            "specialist_agents": 10
+            "specialist_agents": 10,
+            "researcher_agents": 10
         },
+        "pipeline_metrics": pipeline_status,
         "drive_storage": drive_quota
     }
 
@@ -112,22 +119,76 @@ def setup_drive_folders():
     if not gdrive_mgr.is_authenticated():
         raise HTTPException(
             status_code=401,
-            detail="Google Drive não autenticado. Execute 'CONECTAR MEU GOOGLE DRIVE.bat' na sua Área de Trabalho."
+            detail="Google Drive não autenticado. Execute 'CONECTAR MEU GOOGLE DRIVE.bat' no Desktop."
         )
     folders = gdrive_mgr.setup_drive_structure()
-    return {"message": "Pastas sincronizadas no Google Drive 5 TB com sucesso!", "folders": folders}
+    return {"message": "13 Pastas sincronizadas no Google Drive 5 TB com sucesso!", "folders": folders}
 
 # ------------------------------------------------------------------------------
-# 3. OS 10 AGENTES ESPECIALIZADOS & MESA REDONDA
+# 3. CENTRAL MULTIAGENTE DE PESQUISA (PESQUISADORES)
+# ------------------------------------------------------------------------------
+@app.get("/api/researchers")
+def list_researchers():
+    """Retorna a lista dos 10 pesquisadores autônomos por nicho."""
+    return research_orchestrator.list_researchers()
+
+class ResearcherRunRequest(BaseModel):
+    niche_slug: str
+    query: Optional[str] = None
+
+@app.post("/api/researchers/run")
+def run_researcher(req: ResearcherRunRequest):
+    """Executa missão de pesquisa com o pesquisador especializado do nicho."""
+    return research_orchestrator.execute_targeted_research(req.niche_slug, req.query)
+
+@app.post("/api/researchers/sweep")
+def run_global_sweep():
+    """Dispara missão sincronizada em todos os 10 nichos simultaneamente."""
+    return research_orchestrator.execute_global_sweep()
+
+# ------------------------------------------------------------------------------
+# 4. ALGORITMO DE PESQUISA & APRENDIZADO (200.000+ SHORTS)
+# ------------------------------------------------------------------------------
+@app.get("/api/pipeline/metrics")
+def get_pipeline_metrics():
+    return pipeline_mgr.get_pipeline_metrics()
+
+class PipelineStepRequest(BaseModel):
+    niche_slug: str
+    query: str
+
+@app.post("/api/pipeline/run-step")
+def run_pipeline_step(req: PipelineStepRequest):
+    return pipeline_mgr.run_full_pipeline_step(req.niche_slug, req.query)
+
+# ------------------------------------------------------------------------------
+# 5. MÓDULO DE ANÁLISE CRÍTICA PROFISSIONAL
+# ------------------------------------------------------------------------------
+class CriticalAnalysisRequest(BaseModel):
+    title: str
+    transcript: str
+    duration_seconds: float = 35.0
+    niche_slug: str = "geral"
+
+@app.post("/api/critical-analysis")
+def run_critical_analysis(req: CriticalAnalysisRequest):
+    """Executa a Análise Crítica completa com justificativas técnicas detalhadas."""
+    return critical_analysis_eng.evaluate_content(
+        title=req.title,
+        transcript=req.transcript,
+        duration_seconds=req.duration_seconds,
+        niche_slug=req.niche_slug
+    )
+
+# ------------------------------------------------------------------------------
+# 6. OS 10 AGENTES ESPECIALIZADOS DE PRODUÇÃO
 # ------------------------------------------------------------------------------
 @app.get("/api/agents")
 def list_agents():
-    """Retorna os 10 especialistas da empresa, seus papéis e critérios técnicos."""
     return company.get_company_roster()
 
 @app.get("/api/agents/decisions")
 def list_agent_decisions(agent_name: Optional[str] = None, limit: int = 50):
-    """Histórico de decisões e deliberações registradas pelos agentes."""
     return memory.get_agent_history(agent_name, limit)
 
 class CutEvaluationRequest(BaseModel):
@@ -139,7 +200,6 @@ class CutEvaluationRequest(BaseModel):
 
 @app.post("/api/agents/evaluate")
 def evaluate_cut_with_company(req: CutEvaluationRequest):
-    """Executa a deliberação dos 10 agentes e do Diretor de Conteúdo sobre um trecho."""
     payload = {
         "title": req.title,
         "transcript": req.transcript,
@@ -150,7 +210,7 @@ def evaluate_cut_with_company(req: CutEvaluationRequest):
     return company.evaluate_candidate_cut(payload)
 
 # ------------------------------------------------------------------------------
-# 4. DEEP PODCAST ANALYZER
+# 7. DEEP PODCAST ANALYZER
 # ------------------------------------------------------------------------------
 class PodcastAnalysisRequest(BaseModel):
     title: str
@@ -160,14 +220,12 @@ class PodcastAnalysisRequest(BaseModel):
 
 @app.post("/api/podcasts/analyze")
 def analyze_podcast_endpoint(req: PodcastAnalysisRequest):
-    """Ingere episódio longo, segmenta em candidatos e executa a deliberação dos 10 agentes."""
-    res = podcast_analyzer.analyze_episode(
+    return podcast_analyzer.analyze_episode(
         episode_title=req.title,
         transcript_data=req.transcript_text,
         source_url=req.source_url or "",
         channel_name=req.channel_name or "Podcast Host"
     )
-    return res
 
 @app.get("/api/podcasts/cuts")
 def list_podcast_cuts(status: Optional[str] = None, limit: int = 50):
@@ -193,62 +251,7 @@ def list_podcast_cuts(status: Optional[str] = None, limit: int = 50):
         return rows
 
 # ------------------------------------------------------------------------------
-# 5. PERSONALIDADES EDITORIAIS
-# ------------------------------------------------------------------------------
-@app.get("/api/profiles")
-def list_editorial_profiles():
-    return profiles_mgr.get_all_profiles()
-
-class BlendProfileRequest(BaseModel):
-    slug_a: str
-    slug_b: str
-    weight_a: float = 0.5
-
-@app.post("/api/profiles/blend")
-def blend_profiles_endpoint(req: BlendProfileRequest):
-    return profiles_mgr.blend_profiles(req.slug_a, req.slug_b, req.weight_a)
-
-# ------------------------------------------------------------------------------
-# 6. LABORATÓRIO DE EXPERIMENTOS A/B
-# ------------------------------------------------------------------------------
-@app.get("/api/experiments")
-def list_experiments_endpoint():
-    return exp_lab.list_experiments()
-
-class CreateExperimentRequest(BaseModel):
-    title: str
-    hypothesis: str
-    variable_type: str
-    control_variant: str
-    test_variant: str
-    channel_id: int
-
-@app.post("/api/experiments")
-def create_experiment_endpoint(req: CreateExperimentRequest):
-    exp_id = exp_lab.create_experiment(
-        title=req.title,
-        hypothesis=req.hypothesis,
-        variable_type=req.variable_type,
-        control_variant=req.control_variant,
-        test_variant=req.test_variant,
-        channel_id=req.channel_id
-    )
-    return {"experiment_id": exp_id, "status": "running"}
-
-class RecordExperimentResultRequest(BaseModel):
-    control_metrics: Dict[str, Any]
-    test_metrics: Dict[str, Any]
-
-@app.post("/api/experiments/{experiment_id}/record")
-def record_experiment_endpoint(experiment_id: int, req: RecordExperimentResultRequest):
-    return exp_lab.record_experiment_results(
-        experiment_id=experiment_id,
-        control_metrics=req.control_metrics,
-        test_metrics=req.test_metrics
-    )
-
-# ------------------------------------------------------------------------------
-# 7. BIBLIOTECA DE REFERÊNCIAS (50.000 VÍDEOS)
+# 8. BIBLIOTECA DE REFERÊNCIAS (200.000 SHORTS)
 # ------------------------------------------------------------------------------
 @app.get("/api/catalog")
 def list_catalog_videos(
@@ -279,64 +282,24 @@ def list_catalog_videos(
         cursor.execute(query, params)
         return [dict(r) for r in cursor.fetchall()]
 
-class IngestUrlRequest(BaseModel):
-    url: str
-    category_slug: str = "cortes_podcasts"
-    transcript: Optional[str] = ""
+# ------------------------------------------------------------------------------
+# 9. PERSONALIDADES EDITORIAIS & EXPERIMENTOS
+# ------------------------------------------------------------------------------
+@app.get("/api/profiles")
+def list_editorial_profiles():
+    return profiles_mgr.get_all_profiles()
 
-@app.post("/api/catalog/ingest")
-def ingest_reference_url(req: IngestUrlRequest):
-    return large_cataloger.ingest_reference(req.url, req.category_slug, req.transcript or "")
+@app.get("/api/experiments")
+def list_experiments_endpoint():
+    return exp_lab.list_experiments()
 
 # ------------------------------------------------------------------------------
-# 8. OS 20 CANAIS YOUTUBE SHORTS
+# 10. OS 20 CANAIS YOUTUBE SHORTS
 # ------------------------------------------------------------------------------
 @app.get("/api/channels")
 def list_channels():
     return channel_mgr.list_all_channels()
 
-@app.get("/api/channels/{channel_id}")
-def get_channel(channel_id: int):
-    ch = channel_mgr.get_channel_by_id(channel_id)
-    if not ch:
-        raise HTTPException(status_code=404, detail="Canal não encontrado.")
-    return ch
-
-# ------------------------------------------------------------------------------
-# 9. ROTEIROS & IDEIAS 100% ORIGINAIS
-# ------------------------------------------------------------------------------
-@app.get("/api/scripts")
-def list_scripts(channel_id: Optional[int] = None):
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        query = """
-            SELECT s.*, c.name as channel_name 
-            FROM scripts s
-            LEFT JOIN channels c ON c.id = s.channel_id
-        """
-        params = []
-        if channel_id:
-            query += " WHERE s.channel_id = ?"
-            params.append(channel_id)
-        query += " ORDER BY s.id DESC"
-        cursor.execute(query, params)
-        return [dict(r) for r in cursor.fetchall()]
-
-class GenerateScriptRequest(BaseModel):
-    channel_id: int
-    topic: str
-    target_archetype: Optional[str] = "curiosidade"
-
-@app.post("/api/scripts/generate")
-def generate_script(req: GenerateScriptRequest):
-    res = script_gen.generate_original_script(req.channel_id, req.topic, req.target_archetype)
-    if not res:
-        raise HTTPException(status_code=500, detail="Erro ao gerar roteiro.")
-    return res
-
-# ------------------------------------------------------------------------------
-# 10. CATEGORIAS DISPONÍVEIS
-# ------------------------------------------------------------------------------
 @app.get("/api/categories")
 def list_categories():
     with get_db_connection() as conn:
@@ -344,22 +307,15 @@ def list_categories():
         cursor.execute("SELECT * FROM categories ORDER BY name ASC")
         return [dict(r) for r in cursor.fetchall()]
 
-# ------------------------------------------------------------------------------
-# 11. MEMÓRIA CENTRAL & PADRÕES
-# ------------------------------------------------------------------------------
 @app.get("/api/memory/stats")
 def get_memory_stats():
     return memory.get_summary_stats()
-
-@app.get("/api/memory/patterns")
-def list_memory_patterns(category: Optional[str] = None):
-    return memory.query_patterns(category_slug=category)
 
 @app.get("/api/memory/nodes")
 def list_knowledge_nodes(node_type: Optional[str] = None):
     return memory.query_knowledge_nodes(node_type=node_type)
 
-# Servir arquivos estáticos do Dashboard Frontend
+# Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"
 static_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -369,4 +325,4 @@ def serve_index():
     index_file = static_dir / "index.html"
     if index_file.exists():
         return FileResponse(str(index_file))
-    return JSONResponse({"message": "Central de Shorts API Online. Acesse /docs para Swagger."})
+    return JSONResponse({"message": "VIAGEM / IAS API Online."})
