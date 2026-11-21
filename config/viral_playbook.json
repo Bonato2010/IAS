@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "total_learned_patterns": 0,
+  "archetypes": {
+    "humor_zoeira": {
+      "description": "Quebra de expectativa rápida, reações cômicas, situações absurdas e piadas de timing seco.",
+      "hook_rules": ["Começar imediatamente com a fala mais absurda ou a risada de reação.", "Sem introdução."],
+      "examples": []
+    },
+    "treta_polemica": {
+      "description": "Debates quentes, opiniões impopulares e confrontos que geram discussões acaloradas nos comentários.",
+      "hook_rules": ["Começar com afirmação controversa nos primeiros 2 segundos.", "Usar títulos provocativos."],
+      "examples": []
+    },
+    "storytelling_revelacao": {
+      "description": "Histórias pessoais dramáticas, reviravoltas e fatos curiosos que prendem a atenção até o desfecho.",
+      "hook_rules": ["Criar um 'loop aberto' na primeira frase: 'O dia que quase deu tudo errado...'.", "Desfecho surpreendente."],
+      "examples": []
+    },
+    "insight_mentalidade": {
+      "description": "Dicas práticas, conselhos de vida, negócios ou reflexões que geram salvamentos e compartilhamentos.",
+      "hook_rules": ["Promessa direta de valor: 'A regra que mudou meu resultado'.", "Conclusão objetiva."],
+      "examples": []
+    }
+  }
+}

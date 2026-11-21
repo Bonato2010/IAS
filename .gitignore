@@ -1,0 +1,51 @@
+# ====================================================================
+# .gitignore - VIAGEM / IAS Content Platform
+# Proteção estrita contra vazamento de credenciais, chaves e arquivos pesados
+# ====================================================================
+
+# Credenciais e Segredos (NUNCA COMMITAR)
+credentials/*.json
+!credentials/gdrive_credentials.json.example
+*.token.json
+*secret*.json
+*.env*
+.env
+.env.local
+
+# Google Drive Tokens e Logs Locais
+credentials/gdrive_token.json
+auth_log.txt
+*.log
+
+# Mídias e Arquivos Temporários de Vídeo/Áudio (Google Drive 5 TB é o repositório)
+workspace/downloads/*
+workspace/clips/*.mp4
+workspace/clips/*.wav
+workspace/clips/*.ass
+workspace/catalog_temp/*
+!workspace/downloads/.gitkeep
+!workspace/clips/.gitkeep
+
+# Python e Ambientes
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Banco de dados local temporário (se recriável) ou backups
+*.bak
+*.tmp
+
+# IDEs e Editores
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db

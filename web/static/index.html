@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CENTRAL SHORTS | Multi-Skill AI Content Company (5 TB & 20 Canais)</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-dark: #0b0f17;
+      --bg-card: #141c2b;
+      --bg-card-hover: #1c273c;
+      --border-color: #233148;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --accent-yellow: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-purple: #8b5cf6;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 280px;
+      background-color: var(--bg-card);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      padding: 20px 0;
+      flex-shrink: 0;
+    }
+    .brand {
+      padding: 0 20px 20px 20px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .brand i { color: #ff0000; font-size: 1.4rem; }
+    .brand span { font-size: 0.8rem; background: var(--primary); padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+
+    .menu { list-style: none; overflow-y: auto; flex: 1; padding: 15px 10px; }
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 16px;
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      margin-bottom: 4px;
+    }
+    .menu-item:hover { background-color: var(--bg-card-hover); color: var(--text-main); }
+    .menu-item.active { background-color: var(--primary); color: #fff; font-weight: 600; }
+    .menu-item i { width: 20px; text-align: center; }
+
+    .drive-sidebar-status {
+      padding: 16px;
+      margin: 10px 15px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 0.82rem;
+    }
+    .drive-bar { height: 6px; background: #233148; border-radius: 3px; overflow: hidden; margin: 8px 0; }
+    .drive-fill { height: 100%; width: 1.5%; background: var(--accent-cyan); border-radius: 3px; }
+
+    /* MAIN CONTENT */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background-color: var(--bg-dark);
+    }
+    .topbar {
+      height: 65px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      background: var(--bg-card);
+      flex-shrink: 0;
+    }
+    .topbar h1 { font-size: 1.25rem; font-weight: 600; }
+
+    .view-container { padding: 30px; }
+    .hidden { display: none !important; }
+
+    /* KPI CARDS */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .kpi-title { font-size: 0.82rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+    .kpi-value { font-size: 1.8rem; font-weight: 700; color: #fff; }
+    .kpi-sub { font-size: 0.8rem; color: var(--accent-green); }
+
+    /* DRIVE BANNER */
+    .drive-banner {
+      background: linear-gradient(135deg, #14233c 0%, #172a4d 100%);
+      border: 1px solid #25426d;
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+    .drive-info h3 { font-size: 1.15rem; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+    .drive-info p { font-size: 0.88rem; color: var(--text-muted); }
+
+    /* BUTTONS */
+    .btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-success { background: var(--accent-green); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-outline:hover { background: var(--bg-card-hover); }
+
+    /* DATA TABLES */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem; }
+    th { background: rgba(0,0,0,0.25); padding: 14px 18px; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border-color); }
+    td { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* AGENT CARDS GRID */
+    .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .agent-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+    }
+    .agent-card:hover { border-color: var(--primary); }
+    .agent-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--primary);
+      font-weight: 600;
+      width: fit-content;
+    }
+
+    /* FORMS & INPUTS */
+    .input-control {
+      background: #0d131f;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: #fff;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      width: 100%;
+    }
+    .input-control:focus { outline: none; border-color: var(--primary); }
+
+    /* CHANNELS GRID */
+    .channels-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .channel-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .channel-header { display: flex; justify-content: space-between; align-items: center; }
+    .channel-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; background: rgba(59, 130, 246, 0.15); color: var(--primary); font-weight: 600; }
+    .channel-niche { font-size: 0.85rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <i class="fa-brands fa-youtube"></i>
+      CENTRAL SHORTS
+      <span>5 TB</span>
+    </div>
+
+    <ul class="menu">
+      <li class="menu-item active" onclick="switchTab('overview')"><i class="fa-solid fa-chart-pie"></i> Visão Geral</li>
+      <li class="menu-item" onclick="switchTab('agents')"><i class="fa-solid fa-robot"></i> Os 10 Agentes de IA</li>
+      <li class="menu-item" onclick="switchTab('podcasts')"><i class="fa-solid fa-podcast"></i> Deep Podcast Analyzer</li>
+      <li class="menu-item" onclick="switchTab('library')"><i class="fa-solid fa-film"></i> Biblioteca (50.000)</li>
+      <li class="menu-item" onclick="switchTab('profiles')"><i class="fa-solid fa-masks-theater"></i> Perfis Editoriais</li>
+      <li class="menu-item" onclick="switchTab('experiments')"><i class="fa-solid fa-flask"></i> Laboratório A/B</li>
+      <li class="menu-item" onclick="switchTab('channels')"><i class="fa-solid fa-users-gear"></i> Os 20 Canais</li>
+      <li class="menu-item" onclick="switchTab('drive')"><i class="fa-brands fa-google-drive"></i> Google Drive 5 TB</li>
+    </ul>
+
+    <!-- DRIVE STORAGE STATUS WIDGET -->
+    <div class="drive-sidebar-status">
+      <div style="display:flex; justify-content:space-between;">
+        <span><i class="fa-brands fa-google-drive"></i> Drive 5 TB</span>
+        <span id="drive-percent-text">0.1%</span>
+      </div>
+      <div class="drive-bar">
+        <div class="drive-fill" id="drive-bar-fill"></div>
+      </div>
+      <div style="color:var(--text-muted); font-size:0.75rem; display:flex; justify-content:space-between;">
+        <span id="drive-used-text">9.5 GB usado</span>
+        <span id="drive-free-text">5.0 TB livre</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN VIEW -->
+  <main class="content">
+    <div class="topbar">
+      <h1 id="view-title">Visão Geral da Central de Operações</h1>
+      <div style="display: flex; gap: 12px;">
+        <button class="btn btn-outline" onclick="loadAllData()"><i class="fa-solid fa-arrows-rotate"></i> Atualizar</button>
+        <button class="btn btn-primary" onclick="switchTab('podcasts')"><i class="fa-solid fa-wand-magic-sparkles"></i> Analisar Podcast</button>
+      </div>
+    </div>
+
+    <!-- 1. TAB: VISÃO GERAL -->
+    <div id="tab-overview" class="view-container">
+      <div class="drive-banner">
+        <div class="drive-info">
+          <h3><i class="fa-brands fa-google-drive" style="color: #4285F4;"></i> Google Drive 5 TB Conectado como Repositório Central</h3>
+          <p>O computador local não armazena vídeos permanentemente. Todos os arquivos finalizados vão diretamente para o Drive oficial.</p>
+        </div>
+        <button class="btn btn-primary" onclick="setupDriveFolders()"><i class="fa-solid fa-folder-tree"></i> Sincronizar 13 Pastas</button>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-title">Referências no Catálogo</span>
+          <span class="kpi-value" id="kpi-catalog">1</span>
+          <span class="kpi-sub">Capacidade: 50.000 vídeos</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Agentes Especialistas</span>
+          <span class="kpi-value">10</span>
+          <span class="kpi-sub">Conselho Editorial Ativo</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Cortes de Podcasts Analisados</span>
+          <span class="kpi-value" id="kpi-cuts">0</span>
+          <span class="kpi-sub">Avaliados pelo Conselho</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Canais Administrados</span>
+          <span class="kpi-value">20</span>
+          <span class="kpi-sub">Estratégias independentes</span>
+        </div>
+      </div>
+
+      <h2 style="font-size:1.1rem; margin-top:20px; margin-bottom:15px;"><i class="fa-solid fa-video"></i> Últimos Vídeos e Produções</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Vídeo / Título</th>
+              <th>Canal Destino</th>
+              <th>Gancho (0-3s)</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="overview-videos-table">
+            <tr>
+              <td><strong>ELE NÃO AGUENTA MAIS MORAR JUNTO! 😂</strong></td>
+              <td>Canal 01 - Podcasts</td>
+              <td>"Deus me livre e guarde, rapaz..."</td>
+              <td><span style="color:var(--accent-green);"><i class="fa-solid fa-check"></i> Renderizado 9:16</span></td>
+              <td><button class="btn btn-outline" style="padding:4px 10px; font-size:0.75rem;" onclick="alert('Vídeo disponível na pasta: workspace/clips/corte_1_final.mp4')">Ver Arquivo</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2. TAB: OS 10 AGENTES ESPECIALIZADOS -->
+    <div id="tab-agents" class="view-container hidden">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:1.2rem; margin-bottom:6px;">Os 10 Especialistas Artificiais da Empresa</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Cada agente possui especialização real, instruções exclusivas, memória de trabalho e critérios técnicos.</p>
+      </div>
+
+      <div class="agent-grid" id="agents-grid-container">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+
+      <!-- DELIBERAÇÃO EM TEMPO REAL -->
+      <div style="margin-top:35px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:24px;">
+        <h3 style="font-size:1.1rem; margin-bottom:12px;"><i class="fa-solid fa-comments"></i> Mesa Redonda: Testar Deliberação dos 10 Agentes</h3>
+        <p style="color:var(--text-muted); font-size:0.88rem; margin-bottom:15px;">Insira um diálogo ou transcrição para acionar a reunião do conselho editorial:</p>
+        
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <input type="text" id="test-cut-title" class="input-control" placeholder="Título provisório do trecho...">
+          <textarea id="test-cut-transcript" class="input-control" rows="3" placeholder="Cole aqui a fala ou transcrição do corte..."></textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:var(--text-muted); font-size:0.85rem;">Duração aproximada: 35s</span>
+            <button class="btn btn-primary" onclick="runCompanyEvaluation()"><i class="fa-solid fa-gavel"></i> Convocar Conselho & Deliberar</button>
+          </div>
+        </div>
+
+        <div id="evaluation-result-box" style="margin-top:20px; display:none; background:#0d131f; border:1px solid var(--border-color); border-radius:8px; padding:16px;">
+          <h4 id="eval-verdict-title" style="color:var(--accent-green); margin-bottom:8px;"></h4>
+          <p id="eval-verdict-rec" style="font-size:0.9rem; color:var(--text-main); margin-bottom:12px;"></p>
+          <div id="eval-breakdown-tags" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. TAB: DEEP PODCAST ANALYZER -->
+    <div id="tab-podcasts" class="view-container hidden">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:1.2rem; margin-bottom:6px;">Deep Podcast Analyzer</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Segmentação inteligente de episódios longos, detecção de histórias completas e aprovação pelo Diretor de Conteúdo.</p>
+      </div>
+
+      <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:24px; margin-bottom:30px;">
+        <h3 style="font-size:1.05rem; margin-bottom:12px;"><i class="fa-solid fa-file-audio"></i> Ingestão de Novo Episódio de Podcast</h3>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:15px;">
+          <input type="text" id="podcast-title-input" class="input-control" placeholder="Título do Podcast ou Episódio">
+          <input type="text" id="podcast-url-input" class="input-control" placeholder="URL do YouTube ou Fonte">
+        </div>
+        <textarea id="podcast-text-input" class="input-control" rows="4" placeholder="Cole a transcrição completa do podcast (ou trechos com timestamps)..."></textarea>
+        <div style="display:flex; justify-content:flex-end; margin-top:15px;">
+          <button class="btn btn-primary" onclick="submitPodcastForAnalysis()"><i class="fa-solid fa-bolt"></i> Extrair Cortes Candidatos</button>
+        </div>
+      </div>
+
+      <h3 style="font-size:1.1rem; margin-bottom:12px;"><i class="fa-solid fa-scissors"></i> Cortes Candidatos Avaliados pelo Conselho</h3>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Corte / Transcrição</th>
+              <th>Duração</th>
+              <th>Nota Geral</th>
+              <th>Canal Recomendado</th>
+              <th>Decisão do Diretor</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="podcast-cuts-table">
+            <tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Nenhum corte processado ainda. Insira uma transcrição acima para analisar.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4. TAB: BIBLIOTECA DE REFERÊNCIAS -->
+    <div id="tab-library" class="view-container hidden">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div>
+          <h2 style="font-size:1.2rem;">Biblioteca de Referências (Capacidade: 50.000 Vídeos)</h2>
+          <p style="color:var(--text-muted); font-size:0.88rem;">Aprendizado estruturado dos 15 nichos sem armazenar vídeos pesados no PC local.</p>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <input type="text" id="catalog-search-input" placeholder="Pesquisar por título ou canal..." style="padding:10px 14px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:#fff; width:260px;">
+          <button class="btn btn-primary" onclick="loadLibraryData()"><i class="fa-solid fa-magnifying-glass"></i> Filtrar</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Título da Referência</th>
+              <th>Canal de Origem</th>
+              <th>Categoria</th>
+              <th>Views</th>
+              <th>Score Retenção</th>
+              <th>Gancho Detectado</th>
+            </tr>
+          </thead>
+          <tbody id="library-table-body">
+            <tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Carregando banco de referências...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 5. TAB: PERSONALIDADES EDITORIAIS -->
+    <div id="tab-profiles" class="view-container hidden">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:1.2rem; margin-bottom:6px;">As 10 Personalidades Editoriais</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Arquétipos de comunicação que definem o tom, ritmo, estilo de gancho e expressões marcantes.</p>
+      </div>
+
+      <div class="agent-grid" id="profiles-grid-container">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+    </div>
+
+    <!-- 6. TAB: LABORATÓRIO DE EXPERIMENTOS A/B -->
+    <div id="tab-experiments" class="view-container hidden">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:1.2rem; margin-bottom:6px;">Laboratório de Experimentos A/B & Aprendizado Contínuo</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Testa hipóteses de retenção comparando métricas reais do YouTube para retroalimentar a inteligência central.</p>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Título do Experimento</th>
+              <th>Variável Testada</th>
+              <th>Controle vs Teste</th>
+              <th>Status</th>
+              <th>Vencedor / Aprendizado</th>
+            </tr>
+          </thead>
+          <tbody id="experiments-table-body">
+            <tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Nenhum experimento ativo no momento.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 7. TAB: OS 20 CANAIS -->
+    <div id="tab-channels" class="view-container hidden">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:1.2rem; margin-bottom:6px;">Administração dos 20 Canais de YouTube</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Cada canal possui nicho, linha editorial e limites de upload independentes.</p>
+      </div>
+      <div class="channels-grid" id="channels-container"></div>
+    </div>
+
+    <!-- 8. TAB: GOOGLE DRIVE 5 TB -->
+    <div id="tab-drive" class="view-container hidden">
+      <h2 style="font-size:1.2rem; margin-bottom:20px;">Gerenciamento de Armazenamento Central (Google Drive 5 TB)</h2>
+      <div class="drive-banner" style="margin-bottom:25px;">
+        <div class="drive-info">
+          <h3>Capacidade Total Contratada: 5.0 TB</h3>
+          <p id="drive-full-details">Consultando status oficial da API do Google Drive...</p>
+        </div>
+        <button class="btn btn-primary" onclick="setupDriveFolders()"><i class="fa-solid fa-sync"></i> Re-Sincronizar Árvore de Pastas</button>
+      </div>
+
+      <h3 style="font-size:1rem; margin-bottom:12px;">Estrutura das 13 Pastas Mandatórias:</h3>
+      <div class="table-container">
+        <table>
+          <thead><tr><th>Pasta Oficial</th><th>Finalidade</th><th>Status no Drive</th></tr></thead>
+          <tbody>
+            <tr><td><strong>00 - Banco de referências</strong></td><td>Armazenamento de referências analisadas</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>01 - Vídeos catalogados</strong></td><td>Metadados e arquivos temporários de estudo</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>02 - Vídeos autorizados</strong></td><td>Material bruto com permissão de reutilização</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>03 - Vídeos em análise</strong></td><td>Vídeos passando por diarização e IA</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>04 - Inteligência e padrões</strong></td><td>Playbooks e relatórios de retenção</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>05 - Roteiros e ideias</strong></td><td>Roteiros aprovados prontos para voz/cena</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>06 - Produção</strong></td><td>Edições e timelines em andamento</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>07 - Vídeos finalizados</strong></td><td>Arquivos .mp4 verticais 9:16 prontos para postar</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>08 - Thumbnails e materiais</strong></td><td>Capas, fontes, assets visuais e B-rolls</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>09 - Relatórios e métricas</strong></td><td>Consolidação de métricas semanais</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>10 - Canais (20 Pastas)</strong></td><td>Subpastas exclusivas para Canal 01 até Canal 20</td><td><span style="color:var(--accent-green);">Ativa (20 subpastas)</span></td></tr>
+            <tr><td><strong>11 - Arquivos temporários</strong></td><td>Buffer de transferência (apagado após upload)</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+            <tr><td><strong>12 - Backups e documentação</strong></td><td>Backups do banco de dados relacional e configs</td><td><span style="color:var(--accent-green);">Ativa</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function switchTab(tabName) {
+      document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+      const activeBtn = Array.from(document.querySelectorAll('.menu-item')).find(el => el.getAttribute('onclick').includes(tabName));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      document.querySelectorAll('.view-container').forEach(el => el.classList.add('hidden'));
+      const activeTab = document.getElementById('tab-' + tabName);
+      if (activeTab) activeTab.classList.remove('hidden');
+
+      const titles = {
+        overview: 'Visão Geral da Central de Operações',
+        agents: 'Os 10 Agentes Especializados de IA & Conselho Editorial',
+        podcasts: 'Deep Podcast Analyzer & Seleção de Cortes',
+        library: 'Biblioteca de Referências (50.000 Vídeos)',
+        profiles: 'As 10 Personalidades Editoriais',
+        experiments: 'Laboratório de Experimentos A/B & Métricas',
+        channels: 'Gerenciamento dos 20 Canais de YouTube',
+        drive: 'Google Drive 5 TB - Repositório Central'
+      };
+      if (titles[tabName]) document.getElementById('view-title').innerText = titles[tabName];
+
+      if (tabName === 'agents') loadAgentsData();
+      if (tabName === 'podcasts') loadPodcastCuts();
+      if (tabName === 'library') loadLibraryData();
+      if (tabName === 'profiles') loadProfilesData();
+      if (tabName === 'experiments') loadExperimentsData();
+    }
+
+    async function loadAllData() {
+      try {
+        const res = await fetch('/api/overview');
+        const data = await res.json();
+        
+        document.getElementById('kpi-catalog').innerText = data.kpis.cataloged_references;
+        document.getElementById('kpi-cuts').innerText = data.kpis.podcast_cuts_evaluated || 0;
+
+        if (data.drive_storage) {
+          document.getElementById('drive-percent-text').innerText = data.drive_storage.used_percent + '%';
+          document.getElementById('drive-bar-fill').style.width = Math.max(1.5, data.drive_storage.used_percent) + '%';
+          document.getElementById('drive-used-text').innerText = data.drive_storage.used_display + ' usado';
+          document.getElementById('drive-free-text').innerText = data.drive_storage.free_display + ' livre';
+          document.getElementById('drive-full-details').innerText = `Armazenamento contratado: 5.0 TB. Espaço livre: ${data.drive_storage.free_display}. Modo Zero Armazenamento Local ativo.`;
+        }
+
+        const chRes = await fetch('/api/channels');
+        const channels = await chRes.json();
+        const container = document.getElementById('channels-container');
+        container.innerHTML = '';
+        channels.forEach(ch => {
+          container.innerHTML += `
+            <div class="channel-card">
+              <div class="channel-header">
+                <strong>${ch.name}</strong>
+                <span class="channel-badge">${ch.posting_frequency}</span>
+              </div>
+              <div class="channel-niche"><i class="fa-solid fa-tag"></i> ${ch.niche}</div>
+              <div style="font-size:0.8rem; color:var(--text-muted);"><i class="fa-solid fa-bullseye"></i> ${ch.editorial_strategy || 'Foco em retenção'}</div>
+              <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:0.8rem;">
+                <span>Scripts: <strong>${ch.total_scripts || 0}</strong></span>
+                <span>Postados: <strong>${ch.total_published || 0}</strong></span>
+              </div>
+            </div>
+          `;
+        });
+      } catch (e) {
+        console.error("Erro ao carregar dados:", e);
+      }
+    }
+
+    async function loadAgentsData() {
+      try {
+        const res = await fetch('/api/agents');
+        const agents = await res.json();
+        const container = document.getElementById('agents-grid-container');
+        container.innerHTML = '';
+        agents.forEach(a => {
+          container.innerHTML += `
+            <div class="agent-card">
+              <span class="agent-badge">${a.role}</span>
+              <strong style="font-size:1.05rem;">${a.name}</strong>
+              <p style="font-size:0.85rem; color:var(--text-muted);">${a.specialty}</p>
+              <div style="font-size:0.78rem; color:var(--accent-cyan); margin-top:6px;">
+                <i class="fa-solid fa-check-double"></i> Critérios: ${a.criteria ? a.criteria.join(', ') : 'Geral'}
+              </div>
+            </div>
+          `;
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function runCompanyEvaluation() {
+      const title = document.getElementById('test-cut-title').value || "Corte de Teste";
+      const transcript = document.getElementById('test-cut-transcript').value;
+      if (!transcript) return alert("Por favor insira uma fala para avaliar.");
+
+      const res = await fetch('/api/agents/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, transcript, duration: 35.0 })
+      });
+      const data = await res.json();
+      const verdict = data.director_verdict;
+
+      const box = document.getElementById('evaluation-result-box');
+      box.style.display = 'block';
+      document.getElementById('eval-verdict-title').innerText = `Veredito do Diretor: ${verdict.status} (Nota: ${verdict.final_score}/100)`;
+      document.getElementById('eval-verdict-rec').innerText = `Recomendação: ${verdict.recommendation} | Canal Sugerido: Canal ${verdict.assigned_channel_id}`;
+
+      const tags = document.getElementById('eval-breakdown-tags');
+      tags.innerHTML = '';
+      for (const [k, v] of Object.entries(verdict.breakdown_scores)) {
+        tags.innerHTML += `<span style="background:#141c2b; border:1px solid #233148; font-size:0.78rem; padding:4px 8px; border-radius:4px;">${k.replace('Agente de ', '')}: <strong>${v}</strong></span>`;
+      }
+    }
+
+    async function submitPodcastForAnalysis() {
+      const title = document.getElementById('podcast-title-input').value || "Podcast Exemplo";
+      const url = document.getElementById('podcast-url-input').value;
+      const transcript_text = document.getElementById('podcast-text-input').value;
+
+      if (!transcript_text) return alert("Insira a transcrição do podcast.");
+      alert("Enviando episódio para o Deep Podcast Analyzer e convocando os 10 Agentes...");
+
+      const res = await fetch('/api/podcasts/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, transcript_text, source_url: url })
+      });
+      const data = await res.json();
+      alert(`Análise concluída! ${data.total_candidates_analyzed} cortes candidatos foram extraídos e avaliados.`);
+      loadPodcastCuts();
+    }
+
+    async function loadPodcastCuts() {
+      const res = await fetch('/api/podcasts/cuts');
+      const cuts = await res.json();
+      const tbody = document.getElementById('podcast-cuts-table');
+      tbody.innerHTML = '';
+      if (!cuts || cuts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Nenhum corte registrado. Use o formulário acima para processar um podcast.</td></tr>`;
+        return;
+      }
+      cuts.forEach(c => {
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${c.theme || 'Corte'}</strong><br><span style="font-size:0.8rem; color:var(--text-muted);">${c.transcript.substring(0, 80)}...</span></td>
+            <td>${c.duration}s</td>
+            <td><strong style="color:${c.quality_score >= 70 ? 'var(--accent-green)' : 'var(--accent-yellow)'}">${c.quality_score}/100</strong></td>
+            <td>Canal 01</td>
+            <td><span style="font-size:0.8rem; color:${c.director_decision.includes('APPROVED') ? 'var(--accent-green)' : 'var(--accent-yellow)'};">${c.director_decision}</span></td>
+            <td><button class="btn btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="alert('${c.justification}')">Ver Justificativa</button></td>
+          </tr>
+        `;
+      });
+    }
+
+    async function loadLibraryData() {
+      const res = await fetch('/api/catalog');
+      const refs = await res.json();
+      const tbody = document.getElementById('library-table-body');
+      tbody.innerHTML = '';
+      if (!refs || refs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Nenhuma referência encontrada.</td></tr>`;
+        return;
+      }
+      refs.forEach(r => {
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${r.title}</strong></td>
+            <td>${r.author || '-'}</td>
+            <td><span class="channel-badge">${r.category_name || r.niche || 'Geral'}</span></td>
+            <td>${r.views_count ? r.views_count.toLocaleString() : '-'}</td>
+            <td><strong style="color:var(--accent-cyan);">${r.retention_score || 75}%</strong></td>
+            <td style="font-size:0.8rem; color:var(--text-muted);">${r.hook_transcript ? r.hook_transcript.substring(0, 45) + '...' : '-'}</td>
+          </tr>
+        `;
+      });
+    }
+
+    async function loadProfilesData() {
+      const res = await fetch('/api/profiles');
+      const profiles = await res.json();
+      const container = document.getElementById('profiles-grid-container');
+      container.innerHTML = '';
+      profiles.forEach(p => {
+        container.innerHTML += `
+          <div class="agent-card">
+            <span class="agent-badge">${p.archetype}</span>
+            <strong style="font-size:1.05rem;">${p.name}</strong>
+            <p style="font-size:0.85rem; color:var(--text-muted);">${p.tone}</p>
+            <div style="font-size:0.8rem; color:var(--accent-yellow); margin-top:4px;">
+              <i class="fa-solid fa-quote-left"></i> Gancho: "${p.hook_style}"
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
+              Bordão: "${p.catchphrases ? p.catchphrases[0] : ''}"
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    async function loadExperimentsData() {
+      const res = await fetch('/api/experiments');
+      const exps = await res.json();
+      const tbody = document.getElementById('experiments-table-body');
+      tbody.innerHTML = '';
+      if (!exps || exps.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Nenhum experimento cadastrado.</td></tr>`;
+        return;
+      }
+      exps.forEach(e => {
+        tbody.innerHTML += `
+          <tr>
+            <td>#${e.id}</td>
+            <td><strong>${e.title}</strong><br><span style="font-size:0.78rem; color:var(--text-muted);">${e.hypothesis}</span></td>
+            <td>${e.variable_type}</td>
+            <td>A: ${e.control_variant} <br>B: ${e.test_variant}</td>
+            <td><span class="channel-badge">${e.status}</span></td>
+            <td>${e.winner ? '<strong>Vencedor: ' + e.winner.toUpperCase() + '</strong><br>' + e.insights_learned : 'Em andamento'}</td>
+          </tr>
+        `;
+      });
+    }
+
+    async function setupDriveFolders() {
+      alert("Iniciando verificação e criação da árvore das 13 pastas no Google Drive de 5 TB...");
+      try {
+        const res = await fetch('/api/drive/setup-folders', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || "Estrutura sincronizada com sucesso!");
+      } catch (e) {
+        alert("Para sincronizar diretamente com o seu Drive, execute o arquivo 'CONECTAR MEU GOOGLE DRIVE.bat' na sua pasta Daniel no Desktop.");
+      }
+    }
+
+    window.onload = loadAllData;
+  </script>
+</body>
+</html>

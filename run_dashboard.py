@@ -1,0 +1,20 @@
+"""
+Iniciador do Dashboard Web da Central Inteligente de Shorts.
+Acesse no seu navegador: http://127.0.0.1:8000
+"""
+import sys
+import uvicorn
+from pathlib import Path
+
+# Adiciona o diretório do projeto ao sys.path
+sys.path.insert(0, str(Path(__file__).parent))
+
+if __name__ == "__main__":
+    print("=" * 65)
+    print("   CENTRAL INTELIGENTE DE YOUTUBE SHORTS (20 CANAIS & DRIVE 5TB)   ")
+    print("=" * 65)
+    print(" -> Dashboard Web: http://127.0.0.1:8000")
+    print(" -> Documentação Interativa da API: http://127.0.0.1:8000/docs")
+    print(" -> Banco Relacional: C:/Users/jcvse/podcast_cutter/database/shorts_central.db")
+    print("=" * 65)
+    uvicorn.run("web.app:app", host="127.0.0.1", port=8000, reload=False)
