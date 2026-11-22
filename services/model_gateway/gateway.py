@@ -98,6 +98,8 @@ class ModelGatewayService:
         if not model_name:
             return False
         clean_name = model_name.lower()
+        if any(p in clean_name for p in ["gpt-", "claude-", "openai/", "anthropic/"]):
+            return True
         return any(paid.lower() in clean_name for paid in COMMERCIAL_PAID_MODELS)
 
     def check_omniroute_available(self) -> bool:

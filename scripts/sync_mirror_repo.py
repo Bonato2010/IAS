@@ -13,12 +13,15 @@ SOURCE_DIR = Path("C:/Users/jcvse/OneDrive/Desktop/Daniel/CENTRAL SHORTS")
 TARGET_DIR = Path("C:/Users/jcvse/podcast_cutter")
 
 DIRS_TO_SYNC = [
+    "core",
+    "memory",
     "database/migrations",
     "services/learning",
     "services/media_processing",
     "services/discovery",
     "services/orchestration",
     "services/distribution",
+    "services/model_gateway",
     "web/static/assets",
     "web/static",
     "tests",

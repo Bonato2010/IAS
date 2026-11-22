@@ -303,7 +303,7 @@ class IASOrchestrationEngine:
                 
                 refs = meta_svc.list_by_status(status=None)
                 matching = [r for r in refs if r.get("niche") == niche or r.get("category_slug") == niche]
-                candidates_found = max(len(matching), len(refs), 5)
+                candidates_found = len(matching) if matching else len(refs)
                 
                 result_payload["candidates_found"] = candidates_found
                 result_payload["target_id"] = target_id
@@ -317,11 +317,16 @@ class IASOrchestrationEngine:
                 if trend_agt:
                     trend_agt.run(task_ctx)
                 meta_svc = VideoMetadataService(db_path=self.db_path)
+                ref_info = state.get("step_results", {}).get("1_descoberta", {}).get("reference_info") or \
+                           state.get("step_results", {}).get("1_pesquisa_referencias", {}).get("reference_info", {})
+                real_title = ref_info.get("title") or f"Referência {niche} - {target_id}"
+                real_author = ref_info.get("channel_name") or ref_info.get("author") or f"Canal {channel_id}"
+                real_duration = ref_info.get("duration_sec") or ref_info.get("duration")
                 meta_svc.record_cataloged({
                     "video_id": target_id,
-                    "title": f"Referência {niche} - {target_id}",
-                    "channel_name": f"Canal {channel_id}",
-                    "duration_sec": 55.0,
+                    "title": real_title,
+                    "channel_name": real_author,
+                    "duration_sec": real_duration,
                     "status": "catalogado",
                     "channel_id": channel_id
                 })
@@ -444,26 +449,38 @@ class IASOrchestrationEngine:
 
             # ETAPA LEGADA 5: Análise de Conteúdo
             elif step_name == "5_analise_conteudo":
-                result_payload["content_type"] = "educational_viral"
-                result_payload["estimated_retention"] = 87.5
-                result_payload["pacing"] = "dinamico"
+                ref_info = state.get("step_results", {}).get("1_pesquisa_referencias", {}).get("reference_info", {})
+                trans_text = state.get("step_results", {}).get("4_transcricao", {}).get("transcript", "")
+                dur = ref_info.get("duration") or ref_info.get("duration_sec")
+                words_cnt = len(trans_text.split()) if trans_text else 0
+                wpm = round(words_cnt / (dur / 60.0), 1) if dur and dur > 0 and words_cnt > 0 else None
+                result_payload["content_type"] = f"conteudo_{niche}"
+                result_payload["estimated_retention"] = None # Não inventar métrica sem dados de audiência
+                result_payload["pacing_wpm"] = wpm
+                result_payload["pacing"] = "dinamico" if (wpm and wpm > 140) else ("moderado" if wpm else "pendente_transcricao")
 
             # ETAPA LEGADA 7: Avaliação dos Agentes
             elif step_name == "7_avaliacao_agentes":
                 company = ContentCompany()
+                ref_info = state.get("step_results", {}).get("1_pesquisa_referencias", {}).get("reference_info", {})
+                trans_text = state.get("step_results", {}).get("4_transcricao", {}).get("transcript", "")
+                dur = ref_info.get("duration") or ref_info.get("duration_sec") or 0.0
+                views = ref_info.get("views") or ref_info.get("views_count") or 0
+                likes = ref_info.get("likes") or ref_info.get("likes_count") or 0
+
                 eval_res = company.evaluate_candidate_cut({
                     "id": target_id,
-                    "title": f"Short {niche.title()} - {target_id}",
-                    "duration": 55.0,
-                    "transcript": f"Este vídeo sobre {niche} revela informações cruciais...",
-                    "metrics": {"views": 50000, "engagement_score": 88}
+                    "title": ref_info.get("title") or f"Short {niche.title()} - {target_id}",
+                    "duration": dur,
+                    "transcript": trans_text,
+                    "metrics": {"views": views, "likes": likes}
                 })
                 director_verdict = eval_res.get("director_verdict", {})
-                score = director_verdict.get("final_score", 85)
+                score = director_verdict.get("final_score", 70)
                 result_payload["quality_score"] = score
                 result_payload["consensus_score"] = score
                 result_payload["approved"] = score >= 70
-                result_payload["approved_by_director"] = True
+                result_payload["approved_by_director"] = score >= 70
                 result_payload["director_verdict"] = director_verdict
 
             # ETAPA 8: Roteirização Estruturada

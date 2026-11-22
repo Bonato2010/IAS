@@ -649,24 +649,52 @@
           </div>
           <div id="learning-modalities-container" style="display:flex; flex-direction:column; gap:8px;">
             <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
-              <span><i class="fa-solid fa-file-lines" style="color:var(--text-tertiary);"></i> Metadados Extraídos</span>
-              <strong id="badge-mod-metadata">0</strong>
+              <span><i class="fa-solid fa-compass" style="color:var(--text-tertiary);"></i> Vídeos Descobertos</span>
+              <strong id="badge-ind-discovered">0</strong>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
-              <span><i class="fa-solid fa-quote-left" style="color:var(--accent-cyan);"></i> Transcrição & Roteiro Analisados</span>
-              <strong id="badge-mod-transcript">0</strong>
+              <span><i class="fa-solid fa-database" style="color:var(--text-secondary);"></i> Vídeos Catalogados</span>
+              <strong id="badge-ind-cataloged">0</strong>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
-              <span><i class="fa-solid fa-waveform" style="color:var(--accent-emerald);"></i> Acústica & EBU R128 (-14 LUFS)</span>
-              <strong id="badge-mod-audio">0</strong>
+              <span><i class="fa-solid fa-file-lines" style="color:var(--text-tertiary);"></i> Com Metadados Reais</span>
+              <strong id="badge-ind-metadata">0</strong>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
-              <span><i class="fa-solid fa-film" style="color:var(--primary);"></i> Edição Visual & Cortes 9:16</span>
-              <strong id="badge-mod-visual">0</strong>
+              <span><i class="fa-solid fa-quote-left" style="color:var(--accent-cyan);"></i> Transcritos (WPM & Gancho 0-3s)</span>
+              <strong id="badge-ind-transcribed">0</strong>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
-              <span><i class="fa-solid fa-ban" style="color:var(--accent-rose);"></i> Descartados por Governança</span>
-              <strong id="badge-mod-rejected" style="color:var(--accent-rose);">0</strong>
+              <span><i class="fa-solid fa-waveform" style="color:var(--accent-emerald);"></i> Analisados em Áudio (EBU R128)</span>
+              <strong id="badge-ind-audio">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-film" style="color:var(--primary);"></i> Analisados Visualmente (Cortes 9:16)</span>
+              <strong id="badge-ind-visual">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-circle-check" style="color:var(--accent-cyan);"></i> Completamente Analisados (3 Mod.)</span>
+              <strong id="badge-ind-fully" style="color:var(--accent-cyan);">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-brain" style="color:var(--primary);"></i> Com Aprendizado Registrado</span>
+              <strong id="badge-ind-learning">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-certificate" style="color:var(--accent-emerald);"></i> Aprendizados Validados (Evidências)</span>
+              <strong id="badge-ind-validated" style="color:var(--accent-emerald);">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-ban" style="color:var(--accent-rose);"></i> Vídeos Rejeitados (Filtro/Viés)</span>
+              <strong id="badge-ind-rejected" style="color:var(--accent-rose);">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-amber);"></i> Vídeos com Falha</span>
+              <strong id="badge-ind-failed" style="color:var(--accent-amber);">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-clock" style="color:var(--text-tertiary);"></i> Fila: Pendentes / Processando</span>
+              <strong id="badge-ind-queue">0 / 0</strong>
             </div>
           </div>
         </div>
@@ -1863,13 +1891,20 @@
         document.getElementById('stat-learning-fully').innerText = (data.total_fully_analyzed || 0).toLocaleString();
         document.getElementById('stat-learning-health').innerText = (data.health_score || 100) + '%';
 
-        // 3. Modalidades
-        const states = data.states_breakdown || {};
-        document.getElementById('badge-mod-metadata').innerText = states.metadata_processed || 0;
-        document.getElementById('badge-mod-transcript').innerText = states.transcript_processed || 0;
-        document.getElementById('badge-mod-audio').innerText = states.audio_processed || 0;
-        document.getElementById('badge-mod-visual').innerText = states.visual_processed || 0;
-        document.getElementById('badge-mod-rejected').innerText = states.rejected || 0;
+        // 3. Indicadores Granulares Reais
+        const ind = data.granular_indicators || {};
+        if (document.getElementById('badge-ind-discovered')) document.getElementById('badge-ind-discovered').innerText = (ind.videos_descobertos || 0).toLocaleString();
+        if (document.getElementById('badge-ind-cataloged')) document.getElementById('badge-ind-cataloged').innerText = (ind.videos_catalogados || 0).toLocaleString();
+        if (document.getElementById('badge-ind-metadata')) document.getElementById('badge-ind-metadata').innerText = (ind.videos_com_metadados || 0).toLocaleString();
+        if (document.getElementById('badge-ind-transcribed')) document.getElementById('badge-ind-transcribed').innerText = (ind.videos_transcritos || 0).toLocaleString();
+        if (document.getElementById('badge-ind-audio')) document.getElementById('badge-ind-audio').innerText = (ind.videos_analisados_em_audio || 0).toLocaleString();
+        if (document.getElementById('badge-ind-visual')) document.getElementById('badge-ind-visual').innerText = (ind.videos_analisados_visualmente || 0).toLocaleString();
+        if (document.getElementById('badge-ind-fully')) document.getElementById('badge-ind-fully').innerText = (ind.videos_completamente_analisados || 0).toLocaleString();
+        if (document.getElementById('badge-ind-learning')) document.getElementById('badge-ind-learning').innerText = (ind.videos_com_aprendizado_registrado || 0).toLocaleString();
+        if (document.getElementById('badge-ind-validated')) document.getElementById('badge-ind-validated').innerText = (ind.aprendizados_validados || 0).toLocaleString();
+        if (document.getElementById('badge-ind-rejected')) document.getElementById('badge-ind-rejected').innerText = (ind.videos_rejeitados || 0).toLocaleString();
+        if (document.getElementById('badge-ind-failed')) document.getElementById('badge-ind-failed').innerText = (ind.videos_com_falha || 0).toLocaleString();
+        if (document.getElementById('badge-ind-queue')) document.getElementById('badge-ind-queue').innerText = `${ind.tarefas_pendentes || 0} / ${ind.tarefas_em_processamento || 0}`;
 
         // 4. Diversidade de Nichos e Idiomas
         const nicheChips = document.getElementById('learning-niche-chips');

@@ -101,30 +101,39 @@ class AudiovisualLearningSystem:
     # -------------------------------------------------------------------------
     def discover_video(
         self,
-        source_id: str,
-        original_url: str,
-        title: str,
-        creator: str,
-        niche: str,
-        duration_seconds: float,
+        source_id: Optional[str] = None,
+        original_url: Optional[str] = None,
+        title: str = "Sem título",
+        creator: str = "Desconhecido",
+        niche: str = "geral",
+        duration_seconds: Optional[float] = None,
         language: str = "pt-BR",
         views_count: int = 0,
         likes_count: int = 0,
         comment_count: int = 0,
         raw_metadata: Optional[Dict[str, Any]] = None,
-        force_reanalyze: bool = False
+        force_reanalyze: bool = False,
+        source_url: Optional[str] = None,
+        duration: Optional[float] = None,
+        channel_id: Optional[int] = None,
+        category_slug: Optional[str] = None,
+        source_platform: str = "youtube_shorts",
+        **kwargs
     ) -> Dict[str, Any]:
         """
         Ingere um vídeo descoberto na biblioteca com verificação de:
         - Deduplicação por source_id e fingerprint multimodal.
         - Filtros de diversidade por criador/canal e nicho.
-        - Registro do estado inicial ('discovered' ou 'rejected').
         """
+        effective_url = original_url or source_url or (f"https://www.youtube.com/shorts/{source_id}" if source_id else "")
+        if not source_id and effective_url:
+            source_id = effective_url.rstrip("/").split("/")[-1].split("=")[-1]
+        effective_duration = duration_seconds if duration_seconds is not None else (duration or 30.0)
         with self._get_conn() as conn:
             cursor = conn.cursor()
 
             # 1. Verifica se já existe por source_id
-            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ?", (source_id,))
+            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ? OR id = ?", (str(source_id), str(source_id)))
             existing = cursor.fetchone()
             if existing and not force_reanalyze:
                 return {
@@ -136,7 +145,7 @@ class AudiovisualLearningSystem:
                 }
 
             # 2. Verifica deduplicação por fingerprint multimodal
-            fingerprint = self.compute_fingerprint(title, duration_seconds, creator)
+            fingerprint = self.compute_fingerprint(title, effective_duration, creator)
             cursor.execute(
                 "SELECT id, source_id, title FROM audiovisual_library WHERE content_fingerprint = ? AND source_id != ? AND processing_state != 'rejected'",
                 (fingerprint, source_id)
@@ -150,7 +159,7 @@ class AudiovisualLearningSystem:
                         processing_state, content_fingerprint, discard_reason, raw_metadata
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rejected', ?, 'duplicate_fingerprint', ?)
                 """, (
-                    source_id, original_url, title, creator, niche, duration_seconds,
+                    source_id, effective_url, title, creator, niche, effective_duration,
                     language, views_count, likes_count, comment_count, 0.0,
                     fingerprint, json.dumps(raw_metadata or {})
                 ))
@@ -176,7 +185,7 @@ class AudiovisualLearningSystem:
                         processing_state, content_fingerprint, discard_reason, raw_metadata
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rejected', ?, 'diversity_cap_exceeded_creator', ?)
                 """, (
-                    source_id, original_url, title, creator, niche, duration_seconds,
+                    source_id, effective_url, title, creator, niche, effective_duration,
                     language, views_count, likes_count, comment_count, 0.0,
                     fingerprint, json.dumps(raw_metadata or {})
                 ))
@@ -199,7 +208,7 @@ class AudiovisualLearningSystem:
                     processing_state, content_fingerprint, raw_metadata, last_analyzed_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'discovered', ?, ?, CURRENT_TIMESTAMP)
             """, (
-                source_id, original_url, title, creator, niche, duration_seconds,
+                source_id, effective_url, title, creator, niche, effective_duration,
                 language, views_count, likes_count, comment_count, round(engagement_ratio, 2),
                 fingerprint, json.dumps(raw_metadata or {})
             ))
@@ -209,6 +218,7 @@ class AudiovisualLearningSystem:
             return {
                 "status": "SUCCESS",
                 "id": inserted_id,
+                "video_id": inserted_id,
                 "source_id": source_id,
                 "processing_state": "discovered",
                 "engagement_ratio": round(engagement_ratio, 2)
@@ -221,7 +231,7 @@ class AudiovisualLearningSystem:
         """Etapa 1: Análise aprofundada de metadados."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ?", (source_id,))
+            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ? OR id = ?", (str(source_id), str(source_id)))
             row = cursor.fetchone()
             if not row:
                 raise ValueError(f"Vídeo '{source_id}' não encontrado na biblioteca.")
@@ -263,7 +273,7 @@ class AudiovisualLearningSystem:
 
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ?", (source_id,))
+            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ? OR id = ?", (str(source_id), str(source_id)))
             row = cursor.fetchone()
             if not row:
                 raise ValueError(f"Vídeo '{source_id}' não encontrado.")
@@ -326,7 +336,7 @@ class AudiovisualLearningSystem:
         """
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ?", (source_id,))
+            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ? OR id = ?", (str(source_id), str(source_id)))
             row = cursor.fetchone()
             if not row:
                 raise ValueError(f"Vídeo '{source_id}' não encontrado.")
@@ -368,7 +378,7 @@ class AudiovisualLearningSystem:
         """
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ?", (source_id,))
+            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ? OR id = ?", (str(source_id), str(source_id)))
             row = cursor.fetchone()
             if not row:
                 raise ValueError(f"Vídeo '{source_id}' não encontrado.")
@@ -410,7 +420,7 @@ class AudiovisualLearningSystem:
         """
         with self._get_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ?", (source_id,))
+            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ? OR id = ?", (str(source_id), str(source_id)))
             row = cursor.fetchone()
             if not row:
                 raise ValueError(f"Vídeo '{source_id}' não encontrado.")
@@ -586,19 +596,33 @@ class AudiovisualLearningSystem:
 
     def record_knowledge(
         self,
-        niche: str,
-        knowledge_type: str,
-        title: str,
-        summary: str,
-        classification: str,
-        confidence_score: float,
-        evidence_video_ids: List[str],
-        actionable_recommendation: str,
-        anti_pattern_warning: str,
+        niche: Optional[str] = None,
+        knowledge_type: Optional[str] = None,
+        title: Optional[str] = None,
+        summary: Optional[str] = None,
+        classification: Optional[str] = None,
+        confidence_score: float = 0.8,
+        evidence_video_ids: Optional[List[str]] = None,
+        actionable_recommendation: str = "",
+        anti_pattern_warning: str = "",
         target_channel_id: Optional[int] = None,
-        conn: Optional[sqlite3.Connection] = None
+        conn: Optional[sqlite3.Connection] = None,
+        category: Optional[str] = None,
+        topic: Optional[str] = None,
+        pattern_description: Optional[str] = None,
+        validation_status: Optional[str] = None,
+        channel_id: Optional[int] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         """Registra uma conclusão de conhecimento editorial sustentada por evidências."""
+        effective_niche = niche or category or "geral"
+        effective_type = knowledge_type or topic or "estrutura_narrativa"
+        effective_title = title or topic or "Padrão Editorial Identificado"
+        effective_summary = summary or pattern_description or ""
+        effective_classification = classification or validation_status or "OBSERVAÇÃO"
+        effective_channel_id = target_channel_id if target_channel_id is not None else channel_id
+        effective_evidence = evidence_video_ids or []
+
         close_conn = False
         if conn is None:
             conn = self._get_conn()
@@ -606,8 +630,8 @@ class AudiovisualLearningSystem:
 
         try:
             cursor = conn.cursor()
-            evidence_json = json.dumps(evidence_video_ids)
-            evidence_count = len(evidence_video_ids)
+            evidence_json = json.dumps(effective_evidence)
+            evidence_count = len(effective_evidence)
 
             cursor.execute("""
                 INSERT OR REPLACE INTO editorial_knowledge_library (
@@ -616,22 +640,22 @@ class AudiovisualLearningSystem:
                     actionable_recommendation, anti_pattern_warning, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """, (
-                niche, target_channel_id, knowledge_type, title, summary,
-                classification, confidence_score, evidence_json, evidence_count,
+                effective_niche, effective_channel_id, effective_type, effective_title, effective_summary,
+                effective_classification, confidence_score, evidence_json, evidence_count,
                 actionable_recommendation, anti_pattern_warning
             ))
             kid = cursor.lastrowid
             conn.commit()
             return {
                 "id": kid,
-                "niche": niche,
-                "channel_id": target_channel_id,
-                "type": knowledge_type,
-                "title": title,
-                "classification": classification,
+                "niche": effective_niche,
+                "channel_id": effective_channel_id,
+                "type": effective_type,
+                "title": effective_title,
+                "classification": effective_classification,
                 "confidence_score": confidence_score,
                 "evidence_count": evidence_count,
-                "evidence_video_ids": evidence_video_ids
+                "evidence_video_ids": effective_evidence
             }
         finally:
             if close_conn:
@@ -1018,14 +1042,70 @@ class AudiovisualLearningSystem:
             """)
             recent_experiments = [dict(r) for r in cursor.fetchall()]
 
+            # Indicadores granulares auditáveis (conforme Prompt Seção 10)
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library")
+            cnt_discovered = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM video_references")
+            cnt_cataloged = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state IN ('metadata_processed', 'transcript_processed', 'visual_processed', 'audio_processed', 'fully_analyzed')")
+            cnt_with_metadata = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE analysis_payload LIKE '%\"narrative_and_script\"%' OR processing_state IN ('transcript_processed', 'fully_analyzed')")
+            cnt_transcribed = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE analysis_payload LIKE '%\"visual_and_editing\"%' OR processing_state IN ('visual_processed', 'fully_analyzed')")
+            cnt_visual_analyzed = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE analysis_payload LIKE '%\"audio\"%' OR processing_state IN ('audio_processed', 'fully_analyzed')")
+            cnt_audio_analyzed = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state = 'fully_analyzed'")
+            cnt_fully_analyzed = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE evidence_count > 0")
+            cnt_learning_recorded = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE classification IN ('evidence_based_conclusion', 'APRENDIZADO_VALIDADO')")
+            cnt_validated_learnings = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state = 'rejected'")
+            cnt_rejected = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state = 'error'")
+            cnt_failed = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM task_queue WHERE status = 'pending'")
+            cnt_pending_tasks = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM task_queue WHERE status = 'processing'")
+            cnt_processing_tasks = cursor.fetchone()[0]
+
             return {
                 "target_goal": self.target_goal,
                 "progress_percentage": audit["progress_percentage"],
+                "progress_label": f"Vídeos completamente analisados: {cnt_fully_analyzed} / {self.target_goal}",
                 "total_discovered": audit["total_discovered"],
                 "total_valid_unique": audit["total_valid_unique"],
-                "total_fully_analyzed": audit["total_fully_analyzed"],
+                "total_fully_analyzed": cnt_fully_analyzed,
                 "total_rejected": audit["total_rejected"],
                 "states_breakdown": audit["states_breakdown"],
+                "granular_indicators": {
+                    "videos_descobertos": cnt_discovered,
+                    "videos_catalogados": cnt_cataloged,
+                    "videos_com_metadados": cnt_with_metadata,
+                    "videos_transcritos": cnt_transcribed,
+                    "videos_analisados_visualmente": cnt_visual_analyzed,
+                    "videos_analisados_em_audio": cnt_audio_analyzed,
+                    "videos_completamente_analisados": cnt_fully_analyzed,
+                    "videos_com_aprendizado_registrado": cnt_learning_recorded,
+                    "aprendizados_validados": cnt_validated_learnings,
+                    "videos_rejeitados": cnt_rejected,
+                    "videos_com_falha": cnt_failed,
+                    "tarefas_pendentes": cnt_pending_tasks,
+                    "tarefas_em_processamento": cnt_processing_tasks
+                },
                 "niche_distribution": niche_distribution,
                 "language_distribution": lang_distribution,
                 "discard_reasons": discard_reasons,

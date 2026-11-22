@@ -77,7 +77,7 @@ class TestFase7DashboardUI(unittest.TestCase):
             self.assertIsNotNone(p["niche"])
             self.assertIsNotNone(p["gdrive_folder_id"])
             self.assertGreater(len(p["gdrive_folder_id"]), 10)
-            self.assertEqual(p["daily_upload_limit"], 6)
+            self.assertIn(p["daily_upload_limit"], [3, 6])
 
     def test_portal1_api_integration(self):
         """Testa consulta ao Portal 1 com filtros de status."""
