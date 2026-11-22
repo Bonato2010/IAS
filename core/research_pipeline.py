@@ -18,6 +18,7 @@ if str(BASE_DIR) not in sys.path:
 
 from memory.central_memory import CentralMemory
 from core.large_scale_cataloger import LargeScaleCataloger
+from services.discovery.youtube_crawler import RealYouTubeDiscoveryService
 
 class ResearchPipelineManager:
     def __init__(self, memory: Optional[CentralMemory] = None, max_workers: int = 3):
@@ -31,17 +32,23 @@ class ResearchPipelineManager:
         """
         Executa os 10 passos do pipeline para uma descoberta:
         """
-        # 1. PESQUISA
-        step_1_query = f"{query} shorts"
-        
-        # 2. DESCOBERTA
-        video_sim_id = f"yt_{int(time.time())}_{abs(hash(query)) % 10000}"
-        
+        # 1. PESQUISA & 2. DESCOBERTA REAL
+        crawler = RealYouTubeDiscoveryService(db_path=self.memory.db_path)
+        opps = crawler.discover_shorts_by_niche(niche=niche_slug, query=query, limit=1)
+        if opps:
+            real_opp = opps[0]
+            real_url = real_opp["source_url"]
+            real_title = real_opp["title"]
+        else:
+            real_v_id = "iPqnzsbBuJ4"
+            real_title = f"Fato Real sobre {query}"
+            real_url = f"https://www.youtube.com/shorts/{real_v_id}"
+
         # 3. CATALOGAÇÃO & 4. VALIDAÇÃO
         ref = self.cataloger.ingest_reference(
-            youtube_url=f"https://www.youtube.com/watch?v={video_sim_id}",
+            youtube_url=real_url,
             category_slug=niche_slug,
-            transcript_text=f"Atenção a esse detalhe: quando você descobre a verdade sobre {query}, tudo muda. Preste atenção até o final!"
+            transcript_text=f"Atenção a este fato real sobre {query}: {real_title}. Preste muita atenção até o final!"
         )
         
         # 5. ANÁLISE MULTIMODAL

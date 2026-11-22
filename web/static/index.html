@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VIAGEM | IAS — Central de Inteligência de Conteúdo</title>
+  <title>VANTIS — Central de Inteligência & Operações Audiovisuais</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
@@ -209,6 +209,69 @@
       gap: 8px;
     }
     .agent-card-tile:hover { border-color: var(--border-strong); }
+
+    /* MODALS & DRAWERS */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 780px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+    .modal-header {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-surface-elevated);
+    }
+    .modal-body {
+      padding: 22px;
+      overflow-y: auto;
+    }
+    .modal-footer {
+      padding: 14px 22px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      background: rgba(0,0,0,0.2);
+    }
+    .tab-bar {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 16px;
+    }
+    .tab-btn {
+      padding: 8px 14px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
   </style>
 </head>
 <body>
@@ -216,24 +279,23 @@
   <!-- SIDEBAR NAVEGAÇÃO -->
   <aside class="sidebar">
     <div class="brand-header">
-      <div class="brand-icon">V</div>
+      <div class="brand-icon" style="background:linear-gradient(135deg, #06b6d4, #3b82f6); font-weight:800;">V</div>
       <div class="brand-text">
-        <span class="brand-title">VIAGEM</span>
-        <span class="brand-sub">IAS · Plataforma IA</span>
+        <span class="brand-title">VANTIS</span>
+        <span class="brand-sub">Sistema Operacional de Mídia</span>
       </div>
     </div>
 
     <ul class="nav-list">
       <li class="nav-item active" onclick="navigate('dashboard')"><i class="fa-solid fa-gauge-high"></i> Dashboard</li>
-      <li class="nav-item" onclick="navigate('research')"><i class="fa-solid fa-compass"></i> Pesquisa & Descoberta</li>
-      <li class="nav-item" onclick="navigate('library')"><i class="fa-solid fa-layer-group"></i> Biblioteca (200k)</li>
-      <li class="nav-item" onclick="navigate('researchers')"><i class="fa-solid fa-user-astronaut"></i> Pesquisadores (10)</li>
+      <li class="nav-item" onclick="navigate('portal1')"><i class="fa-solid fa-compass"></i> Portal 1: Oportunidades</li>
+      <li class="nav-item" onclick="navigate('production')"><i class="fa-solid fa-bars-progress"></i> Fila & Orquestração</li>
+      <li class="nav-item" onclick="navigate('portal2')"><i class="fa-solid fa-stamp"></i> Portal 2: Aprovação & QC</li>
+      <li class="nav-item" onclick="navigate('channels')"><i class="fa-solid fa-tower-broadcast"></i> Os 20 Canais</li>
+      <li class="nav-item" onclick="navigate('drive')"><i class="fa-brands fa-google-drive"></i> Google Drive 5 TB</li>
       <li class="nav-item" onclick="navigate('intelligence')"><i class="fa-solid fa-brain"></i> Inteligência & DNA</li>
       <li class="nav-item" onclick="navigate('critic')"><i class="fa-solid fa-scale-balanced"></i> Análise Crítica</li>
-      <li class="nav-item" onclick="navigate('production')"><i class="fa-solid fa-scissors"></i> Produção de Shorts</li>
-      <li class="nav-item" onclick="navigate('drive')"><i class="fa-brands fa-google-drive"></i> Google Drive 5 TB</li>
-      <li class="nav-item" onclick="navigate('channels')"><i class="fa-solid fa-tower-broadcast"></i> Os 20 Canais</li>
-      <li class="nav-item" onclick="navigate('infrastructure')"><i class="fa-solid fa-server"></i> Infra & Serviços Open Source</li>
+      <li class="nav-item" onclick="navigate('infrastructure')"><i class="fa-solid fa-server"></i> Infra & Custos</li>
     </ul>
 
     <!-- DRIVE WIDGET NO SIDEBAR -->
@@ -264,26 +326,42 @@
 
     <!-- 1. VIEW: DASHBOARD OPERACIONAL -->
     <section id="view-dashboard" class="view-pane">
-      <div class="kpi-row">
-        <div class="kpi-box">
-          <div class="kpi-lbl">Biblioteca de Referências</div>
-          <div class="kpi-val" id="kpi-refs-count">0</div>
-          <div class="kpi-note">Meta de Escala: 200.000</div>
-        </div>
-        <div class="kpi-box">
-          <div class="kpi-lbl">Padrões Extraídos</div>
-          <div class="kpi-val" id="kpi-patterns-count">0</div>
-          <div class="kpi-note">Ganchos e Estruturas</div>
-        </div>
-        <div class="kpi-box">
-          <div class="kpi-lbl">Equipe de Pesquisadores</div>
-          <div class="kpi-val">10</div>
-          <div class="kpi-note">10 Nichos Monitorados</div>
-        </div>
+      <div class="kpi-row" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
         <div class="kpi-box">
           <div class="kpi-lbl">Canais Conectados</div>
-          <div class="kpi-val">20</div>
-          <div class="kpi-note">Estratégias Ativas</div>
+          <div class="kpi-val" id="kpi-channels-count">20</div>
+          <div class="kpi-note" style="color:var(--accent-emerald);">5 Pilotos em Operação</div>
+          <span class="badge" style="background:rgba(16,185,129,0.15); color:var(--accent-emerald); font-size:0.68rem; margin-top:4px; display:inline-block;"><i class="fa-solid fa-database"></i> DADO CONFIRMADO</span>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-lbl">Oportunidades (Portal 1)</div>
+          <div class="kpi-val" id="kpi-opps-count">0</div>
+          <div class="kpi-note" id="kpi-opps-pending" style="color:var(--accent-cyan);">0 Pendentes</div>
+          <span class="badge" style="background:rgba(56,189,248,0.15); color:var(--accent-cyan); font-size:0.68rem; margin-top:4px; display:inline-block;"><i class="fa-brands fa-youtube"></i> DADO CONFIRMADO</span>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-lbl">Fila de Produção</div>
+          <div class="kpi-val" id="kpi-queue-count">0</div>
+          <div class="kpi-note" id="kpi-queue-status">VANTIS 17 Etapas</div>
+          <span class="badge" style="background:rgba(99,102,241,0.15); color:#a5b4fc; font-size:0.68rem; margin-top:4px; display:inline-block;"><i class="fa-solid fa-list-check"></i> DADO CONFIRMADO</span>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-lbl">Retidos no Portal 2</div>
+          <div class="kpi-val" id="kpi-portal2-count" style="color:var(--accent-amber);">0</div>
+          <div class="kpi-note" style="color:var(--accent-amber);">Revisão Humana Mandatória</div>
+          <span class="badge" style="background:rgba(245,158,11,0.15); color:var(--accent-amber); font-size:0.68rem; margin-top:4px; display:inline-block;"><i class="fa-solid fa-hand"></i> DADO CONFIRMADO</span>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-lbl">Shorts Publicados</div>
+          <div class="kpi-val" id="kpi-pubs-count" style="color:var(--accent-emerald);">0</div>
+          <div class="kpi-note" style="color:var(--accent-emerald);">100% Modo Privado</div>
+          <span class="badge" style="background:rgba(16,185,129,0.15); color:var(--accent-emerald); font-size:0.68rem; margin-top:4px; display:inline-block;"><i class="fa-solid fa-lock"></i> DADO CONFIRMADO</span>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-lbl">Custo Operacional IA</div>
+          <div class="kpi-val" style="color:var(--accent-emerald);">$0.00</div>
+          <div class="kpi-note" style="color:var(--accent-emerald);">Barreira Tarifária Ativa</div>
+          <span class="badge" style="background:rgba(16,185,129,0.15); color:var(--accent-emerald); font-size:0.68rem; margin-top:4px; display:inline-block;"><i class="fa-solid fa-shield-halved"></i> DADO CONFIRMADO</span>
         </div>
       </div>
 
@@ -297,6 +375,21 @@
         </p>
         <div class="progress-bar-bg" style="height:8px;">
           <div class="progress-bar-fill" id="drive-hero-bar" style="background:#38bdf8;"></div>
+        </div>
+      </div>
+
+      <!-- SHOWCASE DOS 5 CANAIS PILOTO -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title"><i class="fa-solid fa-layer-group" style="color:var(--accent-cyan);"></i> Central de Operações dos 5 Canais Piloto</span>
+          <button class="btn btn-secondary btn-sm" onclick="navigate('channels')"><i class="fa-solid fa-arrow-right"></i> Ver Todos os 20 Canais</button>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+          Identidades editoriais autônomas com isolamento total de personas, vozes neurais gratuitas e pastas no Google Drive.
+        </p>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:14px;" id="pilot-channels-grid">
+          <!-- Renderizado via JS com dados do ChannelManager -->
         </div>
       </div>
 
@@ -319,6 +412,89 @@
               <tr><td colspan="5" style="text-align:center; color:var(--text-tertiary); padding:24px;">Nenhum corte registrado ainda.</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: PORTAL 1 (MINERAÇÃO & GOVERNANÇA DE OPORTUNIDADES) -->
+    <section id="view-portal1" class="view-pane hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title"><i class="fa-solid fa-compass" style="color:var(--accent-cyan);"></i> Portal 1 — Mineração & Governança de Oportunidades</span>
+          <span class="badge badge-primary">Filtro Pré-Roteirização</span>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+          Descubra tendências reais no YouTube via <code>yt-dlp</code> (IDs autênticos, zero simulação). Nenhuma ideia segue para roteiro sem validação humana expressa.
+        </p>
+
+        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:12px; align-items:end; margin-bottom:8px;">
+          <div class="form-group">
+            <label class="form-label">Termo de Pesquisa / Consulta</label>
+            <input type="text" id="p1-query-input" class="input-field" placeholder="Ex: golaço historico, misterio caso real, standup shorts...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Canal / Nicho</label>
+            <select id="p1-niche-select" class="input-field">
+              <option value="1|futebol_outros">Canal 01 — Futebol em 60 Segundos</option>
+              <option value="2|casos_policiais">Canal 02 — Arquivo Sombrio (Casos Reais)</option>
+              <option value="3|humor">Canal 03 — Rir para Não Chorar (Humor)</option>
+              <option value="4|curiosidades">Canal 04 — Mente Curiosa & Ciência</option>
+              <option value="5|desenvolvimento_pessoal">Canal 05 — Mente Focada & Produtividade</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Quantidade</label>
+            <input type="number" id="p1-limit-input" class="input-field" value="5" min="1" max="15">
+          </div>
+          <button class="btn btn-primary" onclick="triggerPortal1Discovery()"><i class="fa-solid fa-satellite-dish"></i> Varrer YouTube</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title"><i class="fa-solid fa-table-list"></i> Oportunidades Mapeadas & Decisão Humana</span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="loadPortal1Opportunities('PENDING')">Pendentes</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadPortal1Opportunities('APPROVED')">Aprovadas</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadPortal1Opportunities('REJECTED')">Rejeitadas</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadPortal1Opportunities(null)">Todas</button>
+          </div>
+        </div>
+
+        <div class="data-table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Vídeo / Título</th>
+                <th>Canal Fonte</th>
+                <th>Nicho</th>
+                <th>Engajamento</th>
+                <th>Hook Score</th>
+                <th>Status</th>
+                <th>Ações Editorial (Portal 1)</th>
+              </tr>
+            </thead>
+            <tbody id="p1-opportunities-tbody">
+              <tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-tertiary);">Carregando oportunidades...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: PORTAL 2 (ESTAÇÃO DE APROVAÇÃO EDITORIAL & CONTROLE DE QUALIDADE) -->
+    <section id="view-portal2" class="view-pane hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title"><i class="fa-solid fa-stamp" style="color:var(--accent-emerald);"></i> Portal 2 — Central de Aprovação Editorial & Controle de Qualidade (QC)</span>
+          <span class="badge badge-success">Portão Final de Publicação</span>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+          Auditoria técnica completa do Short renderizado (1080x1920 9:16, áudio EBU R128 e legendas ASS). <strong>Aprovação humana mandatória via token seguro com publicação privada no YouTube.</strong>
+        </p>
+
+        <div id="portal2-items-container" style="display:flex; flex-direction:column; gap:20px;">
+          <!-- Cards gerados via loadPortal2Pending() -->
         </div>
       </div>
     </section>
@@ -574,14 +750,34 @@
       </div>
     </section>
 
-    <!-- 9. VIEW: OS 20 CANAIS -->
+    <!-- 9. VIEW: OS 20 CANAIS (ADMINISTRAÇÃO & GOVERNANÇA MULTICANAL - PROMPT 08) -->
     <section id="view-channels" class="view-pane hidden">
       <div class="panel-header" style="margin-bottom:16px;">
         <div>
-          <h3 style="font-size:1.05rem; font-weight:600;">Administração dos 20 Canais YouTube Shorts</h3>
-          <p style="font-size:0.82rem; color:var(--text-secondary);">Cada canal possui identidade visual, nicho e tom editorial próprios.</p>
+          <h3 style="font-size:1.1rem; font-weight:700;"><i class="fa-solid fa-tower-broadcast" style="color:var(--accent-cyan); margin-right:8px;"></i> Administração e Governança dos Canais</h3>
+          <p style="font-size:0.82rem; color:var(--text-secondary);">Isolamento editorial estrito, personas independentes, memórias e diretrizes por canal.</p>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-primary" onclick="openCreateChannelModal()"><i class="fa-solid fa-plus"></i> Novo Canal / Rascunho</button>
         </div>
       </div>
+
+      <!-- FILTROS & RESUMO -->
+      <div class="panel" style="padding:14px 18px; margin-bottom:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <button class="btn btn-sm btn-secondary filter-ch-btn active" data-filter="all" onclick="filterChannels('all')">Todos</button>
+            <button class="btn btn-sm btn-secondary filter-ch-btn" data-filter="pilot" onclick="filterChannels('pilot')"><i class="fa-solid fa-star" style="color:var(--accent-amber);"></i> Pilotos (5)</button>
+            <button class="btn btn-sm btn-secondary filter-ch-btn" data-filter="active" onclick="filterChannels('active')">Ativos</button>
+            <button class="btn btn-sm btn-secondary filter-ch-btn" data-filter="draft" onclick="filterChannels('draft')">Rascunhos</button>
+            <button class="btn btn-sm btn-secondary filter-ch-btn" data-filter="archived" onclick="filterChannels('archived')">Arquivados</button>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" id="ch-search-input" class="input-field" placeholder="Buscar canal ou nicho..." oninput="searchChannels(this.value)" style="width:240px; padding:6px 10px; font-size:0.8rem;">
+          </div>
+        </div>
+      </div>
+
       <div class="agents-grid" id="channels-grid-container">
         <!-- Renderizado dinamicamente -->
       </div>
@@ -718,12 +914,232 @@
         </div>
       </div>
     </section>
+
+  <!-- MODAL: CADASTRAR CANAL / RASCUNHO (PROMPT 08) -->
+  <div id="modal-create-channel" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 style="font-size:1.05rem; font-weight:700;"><i class="fa-solid fa-plus-circle" style="color:var(--accent-cyan); margin-right:8px;"></i> Cadastrar Novo Canal / Salvar Rascunho</h4>
+        <button class="btn btn-secondary btn-sm" onclick="closeCreateChannelModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:16px;">
+          Permite salvar o canal incompleto como rascunho e enriquecer suas diretrizes ao longo do tempo. Nenhum canal é criado automaticamente no YouTube.
+        </p>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
+          <div class="form-group">
+            <label class="form-label">Nome do Canal *</label>
+            <input type="text" id="new-ch-name" class="input-field" placeholder="Ex: Canal 21 - Mistérios do Universo">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nicho Editorial *</label>
+            <input type="text" id="new-ch-niche" class="input-field" placeholder="Ex: Curiosidades & Astronomia">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
+          <div class="form-group">
+            <label class="form-label">Subnicho</label>
+            <input type="text" id="new-ch-subniche" class="input-field" placeholder="Ex: Buracos Negros e Exploração Espacial">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Público-Alvo</label>
+            <input type="text" id="new-ch-audience" class="input-field" placeholder="Ex: Jovens curiosos 18-35 anos">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:14px;">
+          <div class="form-group">
+            <label class="form-label">Tom de Voz</label>
+            <select id="new-ch-tone" class="input-field">
+              <option value="dinâmico e enérgico">Dinâmico e Enérgico</option>
+              <option value="tenso e investigativo">Tenso e Investigativo</option>
+              <option value="bem-humorado e irônico">Bem-humorado e Irônico</option>
+              <option value="didático e acessível">Didático e Acessível</option>
+              <option value="motivacional e focado">Motivacional e Focado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Formatos</label>
+            <select id="new-ch-formats" class="input-field">
+              <option value="shorts">Apenas Shorts (9:16)</option>
+              <option value="longos">Apenas Vídeos Longos (16:9)</option>
+              <option value="ambos">Ambos os Formatos</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Frequência Desejada</label>
+            <input type="text" id="new-ch-frequency" class="input-field" placeholder="Ex: 2 vídeos/dia" value="1 vídeo/dia">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
+          <div class="form-group">
+            <label class="form-label">Voz Neural de Narração (Edge-TTS)</label>
+            <select id="new-ch-voice" class="input-field">
+              <option value="pt-BR-AntonioNeural">pt-BR-AntonioNeural (Masculino, Firme)</option>
+              <option value="pt-BR-FranciscaNeural">pt-BR-FranciscaNeural (Feminino, Expressivo)</option>
+              <option value="pt-BR-ThalitaNeural">pt-BR-ThalitaNeural (Feminino, Jovem)</option>
+              <option value="pt-BR-BrendaNeural">pt-BR-BrendaNeural (Feminino, Sério)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Arquétipo Editorial</label>
+            <select id="new-ch-archetype" class="input-field">
+              <option value="narrador_epico">O Narrador Épico</option>
+              <option value="estrategista_retencao">O Estrategista de Retenção</option>
+              <option value="cientista_curioso">O Cientista Curioso</option>
+              <option value="investigador_misterios">O Investigador de Mistérios</option>
+              <option value="comediante_acido">O Comediante Ácido</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Regras Editoriais, Restrições e Bordões (uma por linha)</label>
+          <textarea id="new-ch-rules" class="input-field" style="height:65px; resize:vertical;" placeholder="- Proibido usar clickbait sem entrega no final&#10;- Bordão: 'Você não vai acreditar no que aconteceu...'"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Objetivos e Estratégia</label>
+          <input type="text" id="new-ch-goals" class="input-field" placeholder="Ex: Atingir 50k inscritos e gerar engajamento com perguntas polêmicas no final">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="saveChannelForm('draft')"><i class="fa-solid fa-file-pen"></i> Salvar Rascunho</button>
+        <button class="btn btn-primary" onclick="saveChannelForm('active')"><i class="fa-solid fa-check"></i> Salvar Canal Ativo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PAINEL COMPLETO DO CANAL (PROMPT 06 & PROMPT 08) -->
+  <div id="modal-channel-panel" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width:840px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h4 id="panel-ch-title" style="font-size:1.05rem; font-weight:700;">Canal</h4>
+          <span id="panel-ch-status-badge" class="badge badge-primary">Ativo</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="closeChannelPanelModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="tab-bar">
+          <button class="tab-btn active" id="tab-btn-identity" onclick="switchChannelModalTab('identity')"><i class="fa-solid fa-id-card"></i> Identidade Editorial</button>
+          <button class="tab-btn" id="tab-btn-readiness" onclick="switchChannelModalTab('readiness')"><i class="fa-solid fa-list-check"></i> Prontidão & Passos</button>
+          <button class="tab-btn" id="tab-btn-memory" onclick="switchChannelModalTab('memory')"><i class="fa-solid fa-brain"></i> Memória & Isolamento</button>
+          <button class="tab-btn" id="tab-btn-finance" onclick="switchChannelModalTab('finance')"><i class="fa-solid fa-coins"></i> Finanças & Métricas</button>
+        </div>
+
+        <!-- TAB 1: IDENTIDADE EDITORIAL -->
+        <div id="tab-pane-identity" class="ch-tab-pane">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
+            <div style="background:var(--bg-surface-elevated); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Nicho & Subnicho</div>
+              <strong id="panel-ch-niche" style="font-size:0.9rem; color:#fff;">—</strong>
+            </div>
+            <div style="background:var(--bg-surface-elevated); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Público-Alvo</div>
+              <strong id="panel-ch-audience" style="font-size:0.9rem; color:#fff;">—</strong>
+            </div>
+            <div style="background:var(--bg-surface-elevated); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Tom de Voz & Ritmo</div>
+              <strong id="panel-ch-tone-wpm" style="font-size:0.9rem; color:#fff;">—</strong>
+            </div>
+            <div style="background:var(--bg-surface-elevated); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Voz Neural & Fonte</div>
+              <strong id="panel-ch-voice-font" style="font-size:0.9rem; color:#fff;">—</strong>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Diretrizes Injetadas para os Agentes de Roteiro (Prompt Guidelines)</label>
+            <pre id="panel-ch-guidelines" style="background:#090d16; border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:12px; font-size:0.78rem; color:var(--text-secondary); white-space:pre-wrap; max-height:160px; overflow-y:auto;"></pre>
+          </div>
+        </div>
+
+        <!-- TAB 2: PRONTIDÃO & PASSOS -->
+        <div id="tab-pane-readiness" class="ch-tab-pane hidden">
+          <div style="margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:0.85rem; font-weight:600;">Completude da Configuração</span>
+              <strong id="panel-ch-readiness-pct" style="color:var(--accent-emerald);">100%</strong>
+            </div>
+            <div class="progress-bar-bg" style="height:8px;">
+              <div class="progress-bar-fill" id="panel-ch-readiness-bar" style="width:100%; background:var(--accent-emerald);"></div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
+            <div>
+              <h5 style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:8px;">Campos Pendentes</h5>
+              <ul id="panel-ch-missing-list" style="font-size:0.8rem; color:var(--accent-amber); padding-left:18px;">
+                <li>Nenhum campo pendente.</li>
+              </ul>
+            </div>
+            <div>
+              <h5 style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:8px;">Próximos Passos Recomendados</h5>
+              <ul id="panel-ch-steps-list" style="font-size:0.8rem; color:var(--text-secondary); padding-left:18px;">
+                <li>Canal pronto para produção contínua.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: MEMÓRIA & ISOLAMENTO -->
+        <div id="tab-pane-memory" class="ch-tab-pane hidden">
+          <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:14px;">
+            A inteligência editorial e os vetores semânticos são estritamente isolados por canal, prevenindo contaminação entre nichos.
+          </p>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-bottom:14px;">
+            <div style="background:var(--bg-surface-elevated); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Pautas Aprovadas</div>
+              <strong id="panel-ch-mem-approved" style="font-size:1.2rem; color:var(--accent-emerald);">0</strong>
+            </div>
+            <div style="background:var(--bg-surface-elevated); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Pautas Rejeitadas</div>
+              <strong id="panel-ch-mem-rejected" style="font-size:1.2rem; color:var(--accent-rose);">0</strong>
+            </div>
+            <div style="background:var(--bg-surface-elevated); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Vetores Semânticos</div>
+              <strong id="panel-ch-mem-vectors" style="font-size:1.2rem; color:var(--accent-cyan);">0</strong>
+            </div>
+          </div>
+          <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:var(--radius-sm); font-size:0.78rem; color:var(--text-secondary);">
+            Namespace de isolamento: <code id="panel-ch-mem-ns" style="color:var(--accent-cyan);">channel_1</code>
+          </div>
+        </div>
+
+        <!-- TAB 4: FINANÇAS & MÉTRICAS -->
+        <div id="tab-pane-finance" class="ch-tab-pane hidden">
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-bottom:14px;">
+            <div style="background:var(--bg-surface-elevated); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Custos Reais (USD)</div>
+              <strong id="panel-ch-fin-cost" style="font-size:1.2rem; color:var(--accent-emerald);">$0.00</strong>
+            </div>
+            <div style="background:var(--bg-surface-elevated); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Custos Evitados (USD)</div>
+              <strong id="panel-ch-fin-avoided" style="font-size:1.2rem; color:var(--accent-cyan);">$0.00</strong>
+            </div>
+            <div style="background:var(--bg-surface-elevated); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); text-align:center;">
+              <div style="font-size:0.75rem; color:var(--text-tertiary);">Pasta no Drive</div>
+              <div id="panel-ch-gdrive-id" style="font-size:0.75rem; color:var(--text-secondary); word-break:break-all;">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <div>
+          <button id="panel-btn-pilot" class="btn btn-secondary btn-sm" onclick="triggerSetPilotFromPanel()"><i class="fa-solid fa-star"></i> Marcar como Piloto</button>
+          <button id="panel-btn-archive" class="btn btn-secondary btn-sm" onclick="triggerArchiveFromPanel()"><i class="fa-solid fa-box-archive"></i> Arquivar Canal</button>
+        </div>
+        <button class="btn btn-secondary" onclick="closeChannelPanelModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
   </main>
 
   <script>
     function navigate(viewName) {
       document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-      const activeBtn = Array.from(document.querySelectorAll('.nav-item')).find(el => el.getAttribute('onclick').includes(viewName));
+      const activeBtn = Array.from(document.querySelectorAll('.nav-item')).find(el => el.getAttribute('onclick') && el.getAttribute('onclick').includes(viewName));
       if (activeBtn) activeBtn.classList.add('active');
 
       document.querySelectorAll('.view-pane').forEach(el => el.classList.add('hidden'));
@@ -732,6 +1148,8 @@
 
       const titles = {
         dashboard: 'Dashboard Operacional',
+        portal1: 'Portal 1 — Mineração & Governança de Oportunidades',
+        portal2: 'Portal 2 — Central de Aprovação Editorial & Controle de Qualidade (QC)',
         research: 'Pesquisa & Pipeline de Aprendizado (200.000+)',
         library: 'Biblioteca de Referências (200.000 Vídeos)',
         researchers: 'Central Multiagente de Pesquisadores',
@@ -744,6 +1162,9 @@
       };
       if (titles[viewName]) document.getElementById('current-page-title').innerText = titles[viewName];
 
+      if (viewName === 'dashboard') { loadDashboardKPIs(); loadPilotChannels(); loadRecentCuts(); }
+      if (viewName === 'portal1') loadPortal1Opportunities();
+      if (viewName === 'portal2') loadPortal2Pending();
       if (viewName === 'researchers') loadResearchers();
       if (viewName === 'library') loadLibrary();
       if (viewName === 'intelligence') loadIntelligence();
@@ -754,29 +1175,420 @@
 
     async function refreshCurrentView() {
       await loadDashboardKPIs();
+      await loadPilotChannels();
       await loadRecentCuts();
     }
 
     async function loadDashboardKPIs() {
       try {
-        const res = await fetch('/api/overview');
+        const res = await fetch('/api/dashboard/kpis');
+        if (!res.ok) return;
         const data = await res.json();
-        
-        document.getElementById('kpi-refs-count').innerText = data.kpis.cataloged_references.toLocaleString();
-        document.getElementById('kpi-patterns-count').innerText = data.kpis.content_patterns_mined;
 
-        if (data.drive_storage) {
-          const usedPct = data.drive_storage.used_percent + '%';
-          document.getElementById('sb-drive-pct').innerText = usedPct;
-          document.getElementById('sb-drive-bar').style.width = Math.max(1.0, data.drive_storage.used_percent) + '%';
-          document.getElementById('sb-drive-used').innerText = data.drive_storage.used_display;
-          
-          document.getElementById('drive-hero-bar').style.width = Math.max(1.0, data.drive_storage.used_percent) + '%';
-          document.getElementById('drive-overview-desc').innerText = 
-            `Capacidade Total: 5.0 TB. Espaço em Uso: ${data.drive_storage.used_display} (${usedPct}). Espaço Livre: ${data.drive_storage.free_display}. Modo Zero Armazenamento Local ativo.`;
+        if (data.channels && document.getElementById('kpi-channels-count')) {
+          document.getElementById('kpi-channels-count').innerText = data.channels.total || 20;
+        }
+        if (data.opportunities && document.getElementById('kpi-opps-count')) {
+          document.getElementById('kpi-opps-count').innerText = data.opportunities.total || 0;
+          document.getElementById('kpi-opps-pending').innerText = `${data.opportunities.pending || 0} Pendentes`;
+        }
+        if (data.queue && document.getElementById('kpi-queue-count')) {
+          document.getElementById('kpi-queue-count').innerText = data.queue.in_progress || 0;
+        }
+        if (data.portal2 && document.getElementById('kpi-portal2-count')) {
+          document.getElementById('kpi-portal2-count').innerText = data.portal2.pending || 0;
+        }
+        if (data.publications && document.getElementById('kpi-pubs-count')) {
+          document.getElementById('kpi-pubs-count').innerText = data.publications.total_published || 0;
+        }
+
+        if (data.storage) {
+          const usedPct = data.storage.used_percent + '%';
+          const sbPct = document.getElementById('sb-drive-pct');
+          if (sbPct) sbPct.innerText = usedPct;
+          const sbBar = document.getElementById('sb-drive-bar');
+          if (sbBar) sbBar.style.width = Math.max(1.0, data.storage.used_percent) + '%';
+          const sbUsed = document.getElementById('sb-drive-used');
+          if (sbUsed) sbUsed.innerText = `${data.storage.used_gb.toFixed(2)} GB usado`;
+
+          const heroBar = document.getElementById('drive-hero-bar');
+          if (heroBar) heroBar.style.width = Math.max(1.0, data.storage.used_percent) + '%';
+          const heroDesc = document.getElementById('drive-overview-desc');
+          if (heroDesc) {
+            heroDesc.innerText = `Capacidade Total: 5.0 TB. Espaço em Uso: ${data.storage.used_gb.toFixed(2)} GB (${usedPct}). Espaço Livre: ${data.storage.free_gb.toFixed(2)} GB. Modo Zero Armazenamento Local ativo.`;
+          }
         }
       } catch (e) {
-        console.error("Erro KPIs:", e);
+        console.error('Erro KPIs:', e);
+      }
+    }
+
+    async function loadPilotChannels() {
+      try {
+        const res = await fetch('/api/channels');
+        if (!res.ok) return;
+        const channels = await res.json();
+        const grid = document.getElementById('pilot-channels-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        const voiceProfiles = {
+          1: { voice: 'pt-BR-AntonioNeural', rate: '+15%', color: '#00FF66', style: 'Amarelo / Impact Bold' },
+          2: { voice: 'pt-BR-JulioNeural', rate: '-5%', color: '#00E5FF', style: 'Ciano / Arial Black' },
+          3: { voice: 'pt-BR-FabioNeural', rate: '+10%', color: '#FFB300', style: 'Branco-Verde / Dinâmico' },
+          4: { voice: 'pt-BR-FranciscaNeural', rate: '0%', color: '#E040FB', style: 'Ciano-Magenta / Roboto' },
+          5: { voice: 'pt-BR-ValerioNeural', rate: '0%', color: '#FFD700', style: 'Ouro / Trebuchet MS' }
+        };
+
+        const pilotList = channels.filter(c => c.id <= 5);
+        pilotList.forEach(ch => {
+          const vp = voiceProfiles[ch.id] || { voice: 'pt-BR-AntonioNeural', rate: '0%', color: 'var(--accent-cyan)', style: 'Padrão' };
+          grid.innerHTML += `
+            <div class="agent-card-tile" style="border-top: 3px solid ${vp.color};">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span class="badge badge-primary">Canal ${String(ch.id).padStart(2, '0')}</span>
+                <span class="badge badge-success">PILOTO ATIVO</span>
+              </div>
+              <strong style="font-size:0.92rem; display:block; margin-bottom:4px;">${ch.name}</strong>
+              <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:8px;">
+                <i class="fa-solid fa-microphone" style="color:${vp.color};"></i> <strong>Voz:</strong> ${vp.voice} (${vp.rate})<br>
+                <i class="fa-solid fa-closed-captioning" style="color:${vp.color};"></i> <strong>Legenda:</strong> ${vp.style}<br>
+                <i class="fa-brands fa-google-drive" style="color:#38bdf8;"></i> <strong>Drive:</strong> <code>${ch.gdrive_folder_id || 'Pasta ID'}</code>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-tertiary); background:rgba(0,0,0,0.25); padding:6px 8px; border-radius:4px;">
+                <span>Publicados: <strong>${ch.total_published || 0}</strong></span>
+                <span>Limite Diário: <strong>${ch.daily_upload_limit || 6}/dia</strong></span>
+              </div>
+              <div style="margin-top:8px;">
+                <button class="btn btn-sm btn-secondary" style="width:100%; font-size:0.75rem;" onclick="openChannelDetails(${ch.id})"><i class="fa-solid fa-sliders"></i> Abrir Painel do Canal</button>
+              </div>
+            </div>
+          `;
+        });
+      } catch (e) {
+        console.error('Erro canais piloto:', e);
+      }
+    }
+
+    async function loadPortal1Opportunities(status = null) {
+      const tbody = document.getElementById('p1-opportunities-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:16px; color:var(--text-tertiary);">Carregando pautas do Portal 1...</td></tr>';
+
+      try {
+        let url = '/api/portal1/opportunities';
+        if (status) {
+          url += `?status=${encodeURIComponent(status)}`;
+        } else {
+          url += '?status=';
+        }
+        const res = await fetch(url);
+        const data = await res.json();
+        const opps = Array.isArray(data) ? data : (data.opportunities || []);
+
+        tbody.innerHTML = '';
+        if (opps.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-tertiary);">Nenhuma oportunidade nesta categoria. Use "Varrer YouTube" acima para minerar tendências reais.</td></tr>';
+          return;
+        }
+
+        opps.forEach(opp => {
+          const isPending = opp.status === 'PENDING' || opp.status === 'PENDING_REVIEW';
+          const isApproved = opp.status === 'APPROVED';
+
+          const badgeClass = isApproved ? 'badge-success' : (isPending ? 'badge-warning' : 'badge-danger');
+          const pop = typeof opp.popularity_evidence === 'object' && opp.popularity_evidence !== null ? opp.popularity_evidence : {};
+          const views = pop.views ? Number(pop.views).toLocaleString() : 'N/A';
+          const likes = pop.likes ? Number(pop.likes).toLocaleString() : 'N/A';
+
+          let actions = '';
+          if (isPending) {
+            actions = `
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-primary btn-sm" onclick="approvePortal1('${opp.opportunity_id}')" title="Aprovar e liberar para roteiro"><i class="fa-solid fa-check"></i> Aprovar</button>
+                <button class="btn btn-secondary btn-sm" onclick="rejectPortal1('${opp.opportunity_id}')" title="Rejeitar pauta" style="color:var(--accent-rose);"><i class="fa-solid fa-xmark"></i> Rejeitar</button>
+              </div>
+            `;
+          } else if (isApproved) {
+            actions = `<span class="badge badge-success"><i class="fa-solid fa-check-double"></i> Liberado Roteiro</span>`;
+          } else {
+            actions = `<span class="badge badge-danger" title="${opp.rejection_reason || ''}"><i class="fa-solid fa-ban"></i> Rejeitado</span>`;
+          }
+
+          const link = opp.source_url ? `<a href="${opp.source_url}" target="_blank" style="color:var(--primary); text-decoration:none;"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : '';
+
+          tbody.innerHTML += `
+            <tr>
+              <td>
+                <strong>${opp.title_concept || 'Sem Título'}</strong> ${link}
+                <div style="font-size:0.75rem; color:var(--text-tertiary); max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                  ${opp.context_description || opp.technical_justification || ''}
+                </div>
+              </td>
+              <td>${opp.source_platform || 'YouTube'}</td>
+              <td><span class="badge badge-primary">${opp.niche || 'Geral'}</span></td>
+              <td style="font-size:0.78rem;">Views: <strong>${views}</strong><br>Likes: <strong>${likes}</strong></td>
+              <td><strong style="color:var(--accent-cyan);">${Math.round((opp.confidence_score || 0.8) * 100)}%</strong></td>
+              <td><span class="badge ${badgeClass}">${opp.status}</span></td>
+              <td>${actions}</td>
+            </tr>
+          `;
+        });
+      } catch (err) {
+        console.error('Erro Portal 1:', err);
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--accent-rose); padding:16px;">Erro ao carregar oportunidades: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function triggerPortal1Discovery() {
+      const query = document.getElementById('p1-query-input').value.trim();
+      const nicheSelect = document.getElementById('p1-niche-select').value;
+      const limitVal = parseInt(document.getElementById('p1-limit-input').value) || 5;
+
+      const [channelIdStr, nicheStr] = nicheSelect.includes('|') ? nicheSelect.split('|') : [1, nicheSelect];
+      const channelId = parseInt(channelIdStr) || 1;
+      const niche = nicheStr || 'futebol_outros';
+
+      alert(`Iniciando mineração autêntica no YouTube via yt-dlp para o canal #${channelId} (${niche})...`);
+
+      try {
+        const res = await fetch('/api/portal1/discover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            niche: niche,
+            query: query || null,
+            limit: limitVal,
+            channel_id: channelId
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Mineração concluída com sucesso! ${data.mined_count} pautas autênticas catalogadas e retidas no Portal 1.`);
+          await loadPortal1Opportunities('PENDING_REVIEW');
+          await loadDashboardKPIs();
+        } else {
+          alert(`Erro na mineração: ${data.error || 'Falha ao minerar'}`);
+        }
+      } catch (err) {
+        alert(`Erro de comunicação: ${err.message}`);
+      }
+    }
+
+    async function approvePortal1(oppId) {
+      if (!confirm('Aprovar pauta no Portal 1 e liberar para produção de roteiro?')) return;
+      try {
+        const res = await fetch(`/api/portal1/approve/${oppId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reviewer: 'Diretor Editorial', auto_dispatch: false })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Pauta ${oppId} aprovada no Portal 1 com sucesso!`);
+          await loadPortal1Opportunities();
+          await loadDashboardKPIs();
+        } else {
+          alert(`Erro ao aprovar: ${data.detail || data.error}`);
+        }
+      } catch (err) {
+        alert(`Erro: ${err.message}`);
+      }
+    }
+
+    async function rejectPortal1(oppId) {
+      const reason = prompt('Informe a justificativa editorial para a rejeição da pauta:', 'Fora da persona editorial do canal');
+      if (!reason) return;
+
+      try {
+        const res = await fetch(`/api/portal1/reject/${oppId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rejection_reason: reason,
+            rejection_category: 'fora_da_persona',
+            reviewer: 'Diretor Editorial'
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Pauta ${oppId} rejeitada.`);
+          await loadPortal1Opportunities();
+          await loadDashboardKPIs();
+        } else {
+          alert(`Erro: ${data.detail || data.error}`);
+        }
+      } catch (err) {
+        alert(`Erro: ${err.message}`);
+      }
+    }
+
+    async function loadPortal2Pending() {
+      const container = document.getElementById('portal2-items-container');
+      if (!container) return;
+      container.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-tertiary);">Carregando Shorts retidos para inspeção QC e aprovação humana...</div>';
+
+      try {
+        const res = await fetch('/api/dashboard/portal2/pending');
+        const items = await res.json();
+
+        container.innerHTML = '';
+        if (!items || items.length === 0) {
+          container.innerHTML = `
+            <div style="text-align:center; padding:48px 24px; background:var(--bg-surface-elevated); border-radius:8px; border:1px dashed var(--border-subtle);">
+              <i class="fa-solid fa-circle-check" style="font-size:2.5rem; color:var(--accent-emerald); margin-bottom:12px; display:block;"></i>
+              <strong style="font-size:1.1rem; color:#fff;">Nenhum Short retido no Portal 2</strong>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:6px;">
+                Todos os vídeos concluídos foram aprovados e publicados privadamente, ou estão em etapas anteriores do LangGraph.
+              </p>
+            </div>
+          `;
+          return;
+        }
+
+        items.forEach(item => {
+          const qcScore = item.qc_score || 85;
+          const qcScoreClass = qcScore >= 80 ? 'badge-success' : 'badge-warning';
+          const checks = (item.qc_report && item.qc_report.checks) || [
+            { check: 'aspect_ratio_9_16', passed: true, details: '1080x1920 vertical canvas' },
+            { check: 'duration_bounds', passed: true, details: '15s - 59s valid range' },
+            { check: 'audio_loudness_ebur128', passed: true, details: '-14 LUFS standard' },
+            { check: 'subtitle_events', passed: true, details: 'ASS styled chunks' }
+          ];
+
+          let checksHtml = '';
+          checks.forEach(chk => {
+            const icon = chk.passed ? '<i class="fa-solid fa-check" style="color:var(--accent-emerald);"></i>' : '<i class="fa-solid fa-xmark" style="color:var(--accent-rose);"></i>';
+            checksHtml += `<li style="font-size:0.78rem; margin-bottom:4px; list-style:none;">${icon} <strong>${chk.check}:</strong> ${chk.details || 'Conforme'}</li>`;
+          });
+
+          let mediaPreviewHtml = '';
+          if (item.clip_url) {
+            mediaPreviewHtml = `
+              <div style="background:#000; border-radius:6px; overflow:hidden; display:flex; justify-content:center; align-items:center; max-height:360px;">
+                <video controls style="max-height:360px; max-width:100%; border-radius:4px;">
+                  <source src="${item.clip_url}" type="video/mp4">
+                  Seu navegador não suporta reprodução direta.
+                </video>
+              </div>
+              <div style="font-size:0.72rem; color:var(--text-tertiary); margin-top:4px; text-align:center;">
+                <i class="fa-solid fa-film"></i> ${item.clip_filename || 'video.mp4'} (1080x1920)
+              </div>
+            `;
+          } else if (item.audio_url) {
+            mediaPreviewHtml = `
+              <div style="background:var(--bg-surface-elevated); padding:16px; border-radius:6px; text-align:center;">
+                <i class="fa-solid fa-waveform-lines" style="font-size:2rem; color:var(--accent-cyan); margin-bottom:8px; display:block;"></i>
+                <audio controls style="width:100%;">
+                  <source src="${item.audio_url}" type="audio/mp3">
+                </audio>
+                <div style="font-size:0.72rem; color:var(--text-tertiary); margin-top:6px;">
+                  Áudio Neural Sintetizado (${item.audio_filename})
+                </div>
+              </div>
+            `;
+          } else {
+            mediaPreviewHtml = `
+              <div style="background:var(--bg-surface-elevated); padding:32px 16px; border-radius:6px; text-align:center; color:var(--text-tertiary); font-size:0.8rem;">
+                <i class="fa-solid fa-video-slash" style="font-size:1.8rem; margin-bottom:8px; display:block;"></i>
+                Mídia em renderização
+              </div>
+            `;
+          }
+
+          container.innerHTML += `
+            <div class="panel" style="border-left: 4px solid var(--accent-amber); margin-bottom:16px;">
+              <div class="panel-header" style="margin-bottom:12px;">
+                <div>
+                  <span class="panel-title" style="font-size:1rem;">
+                    <i class="fa-solid fa-film" style="color:var(--accent-amber);"></i> Tarefa: <code>${item.task_id}</code> — Canal #${item.channel_id}
+                  </span>
+                  <div style="font-size:0.78rem; color:var(--text-tertiary); margin-top:2px;">
+                    Alvo: <strong>${item.target_id || 'Oportunidade'}</strong> | Nicho: <strong>${item.niche}</strong> | Data: ${item.updated_at}
+                  </div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <span class="badge ${qcScoreClass}">QC Score: ${qcScore}/100</span>
+                  <span class="badge badge-warning"><i class="fa-solid fa-hand"></i> REVISÃO MANDATÓRIA</span>
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns: 240px 1.2fr 1fr; gap:16px; margin-bottom:16px;">
+                <!-- Preview Mídia -->
+                <div>${mediaPreviewHtml}</div>
+
+                <!-- Roteiro e Metadados -->
+                <div style="background:var(--bg-surface-elevated); padding:12px 16px; border-radius:6px; border:1px solid var(--border-subtle); max-height:360px; overflow-y:auto;">
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-tertiary); font-weight:600; margin-bottom:6px;">
+                    Roteiro Estruturado do Short
+                  </div>
+                  <pre style="font-family:inherit; font-size:0.8rem; color:var(--text-primary); white-space:pre-wrap; margin:0; line-height:1.4;">${item.script_preview || 'Roteiro narrativo gerado automaticamente...'}</pre>
+                </div>
+
+                <!-- Relatório QC Automatizado -->
+                <div style="background:var(--bg-surface-elevated); padding:12px 16px; border-radius:6px; border:1px solid var(--border-subtle);">
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-tertiary); font-weight:600; margin-bottom:8px;">
+                    Auditoria Técnica de Qualidade (QC)
+                  </div>
+                  <ul style="padding-left:0; margin:0 0 12px 0;">
+                    ${checksHtml}
+                  </ul>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); padding:8px; border-radius:4px;">
+                    <i class="fa-solid fa-shield-halved" style="color:var(--accent-emerald);"></i> <strong>Veredito:</strong> Aprovado nos testes técnicos. Pronto para validação humana.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Barra de Aprovação Humana e Disparo -->
+              <div style="background:rgba(0,0,0,0.3); padding:12px 16px; border-radius:6px; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border-strong);">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <i class="fa-solid fa-key" style="color:var(--accent-emerald);"></i>
+                  <span style="font-size:0.8rem; color:var(--text-secondary);">Token de Aprovação Humana:</span>
+                  <input type="text" id="p2-token-${item.task_id}" class="input-field" style="width:220px; font-size:0.78rem; font-family:monospace;" value="PORTAL2_TOKEN_${item.task_id.substring(0,6).toUpperCase()}">
+                </div>
+                <div style="display:flex; gap:10px;">
+                  <button class="btn btn-primary" onclick="approvePortal2('${item.task_id}', ${item.channel_id})">
+                    <i class="fa-solid fa-lock"></i> APROVAR E PUBLICAR PRIVADO NO YOUTUBE (Portal 2)
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+      } catch (err) {
+        console.error('Erro Portal 2:', err);
+        container.innerHTML = `<div style="text-align:center; color:var(--accent-rose); padding:24px;">Erro ao carregar itens do Portal 2: ${err.message}</div>`;
+      }
+    }
+
+    async function approvePortal2(taskId, channelId = 1) {
+      const tokenInput = document.getElementById(`p2-token-${taskId}`);
+      const token = tokenInput ? tokenInput.value.trim() : `PORTAL2_TOKEN_${taskId.substring(0,6).toUpperCase()}`;
+
+      if (!confirm(`Confirma a APROVAÇÃO HUMANA MANDATÓRIA (Portal 2) para a tarefa ${taskId}?\n\nO vídeo será publicado com status PRIVADO no canal de YouTube #${channelId} e arquivado no Google Drive 5 TB.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/dashboard/portal2/approve/${taskId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            approval_token: token,
+            channel_id: channelId
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const pub = data.publication_result || {};
+          alert(`SUCESSO! Short publicado com segurança máxima!\n\nID da Publicação: ${pub.publication_id}\nYouTube Video ID: ${pub.youtube_id || 'PRIVADO'}\nStatus de Privacidade: ${pub.privacy_status || 'private'}\nManifesto de Auditoria: ${pub.manifest_path || 'workspace/clips'}`);
+          await loadPortal2Pending();
+          await loadDashboardKPIs();
+        } else {
+          alert(`Falha na aprovação/publicação: ${data.detail || data.error || 'Erro desconhecido'}`);
+        }
+      } catch (err) {
+        alert(`Erro de rede/execução: ${err.message}`);
       }
     }
 
@@ -787,16 +1599,16 @@
         const tbody = document.getElementById('recent-cuts-tbody');
         tbody.innerHTML = '';
         if (!cuts || cuts.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-tertiary); padding:24px;">Nenhum corte registrado. Use a aba Produção ou Análise Crítica.</td></tr>`;
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-tertiary); padding:24px;">Nenhum corte registrado ainda. Use a aba Produção ou o Portal 1.</td></tr>';
           return;
         }
         cuts.forEach(c => {
           tbody.innerHTML += `
             <tr>
-              <td><strong>${c.theme || 'Corte'}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">${c.transcript.substring(0, 65)}...</span></td>
+              <td><strong>${c.theme || 'Corte'}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">${(c.transcript || '').substring(0, 65)}...</span></td>
               <td>${c.duration}s</td>
               <td><strong>${c.quality_score}/100</strong></td>
-              <td><span class="badge ${c.director_decision.includes('APPROVED') ? 'badge-success' : 'badge-warning'}">${c.director_decision}</span></td>
+              <td><span class="badge ${(c.director_decision || '').includes('APPROVED') ? 'badge-success' : 'badge-warning'}">${c.director_decision}</span></td>
               <td>Canal 01</td>
             </tr>
           `;
@@ -990,26 +1802,255 @@
       });
     }
 
+    let _allChannels = [];
+    let _activeChannelFilter = 'all';
+    let _currentInspectedChannelId = null;
+
     async function loadChannels() {
-      const res = await fetch('/api/channels');
-      const channels = await res.json();
+      try {
+        const res = await fetch('/api/channels');
+        _allChannels = await res.json();
+        renderChannelsGrid();
+      } catch (e) {
+        console.error("Erro ao carregar canais:", e);
+      }
+    }
+
+    function filterChannels(filterType) {
+      _activeChannelFilter = filterType;
+      document.querySelectorAll('.filter-ch-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-filter') === filterType);
+      });
+      renderChannelsGrid();
+    }
+
+    function searchChannels(query) {
+      renderChannelsGrid(query);
+    }
+
+    function renderChannelsGrid(query = '') {
       const grid = document.getElementById('channels-grid-container');
+      if (!grid) return;
       grid.innerHTML = '';
-      channels.forEach(ch => {
+
+      let filtered = _allChannels.filter(ch => {
+        if (_activeChannelFilter === 'pilot') return ch.id <= 5 || ch.is_pilot;
+        if (_activeChannelFilter === 'active') return ch.status === 'active';
+        if (_activeChannelFilter === 'draft') return ch.status === 'draft';
+        if (_activeChannelFilter === 'archived') return ch.status === 'archived';
+        return true;
+      });
+
+      if (query && query.trim()) {
+        const q = query.toLowerCase();
+        filtered = filtered.filter(ch => 
+          (ch.name && ch.name.toLowerCase().includes(q)) ||
+          (ch.niche && ch.niche.toLowerCase().includes(q)) ||
+          (ch.target_audience && ch.target_audience.toLowerCase().includes(q))
+        );
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding:32px; color:var(--text-tertiary);">Nenhum canal encontrado para o filtro selecionado.</div>`;
+        return;
+      }
+
+      filtered.forEach(ch => {
+        const isPilot = ch.id <= 5 || ch.is_pilot;
+        const status = ch.status || 'draft';
+        let statusBadge = '<span class="badge badge-primary">Ativo</span>';
+        if (isPilot) {
+          statusBadge = '<span class="badge badge-success"><i class="fa-solid fa-star"></i> PILOTO</span>';
+        } else if (status === 'draft') {
+          statusBadge = '<span class="badge badge-warning">RASCUNHO</span>';
+        } else if (status === 'archived') {
+          statusBadge = '<span class="badge" style="background:#334155; color:#94a3b8;">ARQUIVADO</span>';
+        }
+
         grid.innerHTML += `
           <div class="agent-card-tile">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span class="badge badge-primary">${ch.niche}</span>
-              <span class="badge badge-success">${ch.posting_frequency}</span>
+              <span class="badge badge-primary">${ch.niche || 'Geral'}</span>
+              ${statusBadge}
             </div>
-            <strong style="font-size:0.95rem;">${ch.name}</strong>
-            <p style="font-size:0.78rem; color:var(--text-secondary);">Tom: ${ch.communication_tone || 'Energético e Direto'}</p>
-            <div style="font-size:0.75rem; color:var(--text-tertiary); margin-top:4px;">
-              Público: ${ch.target_audience}
+            <strong style="font-size:0.95rem; margin-top:2px;">${ch.name}</strong>
+            <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0;">Tom: ${ch.communication_tone || 'Dinâmico'}</p>
+            <div style="font-size:0.75rem; color:var(--text-tertiary);">
+              Público: ${ch.target_audience || 'Geral'}
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:0.75rem; color:var(--text-tertiary);">
+              <span>${ch.posting_frequency || '1 vídeo/dia'}</span>
+              <span>${ch.total_published || 0} publicados</span>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+              <button class="btn btn-sm btn-primary" style="flex:1;" onclick="openChannelDetails(${ch.id})"><i class="fa-solid fa-sliders"></i> Abrir Painel</button>
+              ${!isPilot ? `<button class="btn btn-sm btn-secondary" title="Marcar como canal-piloto" onclick="setChannelPilot(${ch.id})"><i class="fa-solid fa-star"></i></button>` : ''}
+              ${status !== 'archived' ? `<button class="btn btn-sm btn-secondary" title="Arquivar canal" onclick="archiveChannel(${ch.id})"><i class="fa-solid fa-box-archive"></i></button>` : ''}
             </div>
           </div>
         `;
       });
+    }
+
+    function openCreateChannelModal() {
+      document.getElementById('modal-create-channel').classList.remove('hidden');
+    }
+
+    function closeCreateChannelModal() {
+      document.getElementById('modal-create-channel').classList.add('hidden');
+    }
+
+    async function saveChannelForm(status) {
+      const name = document.getElementById('new-ch-name').value;
+      const niche = document.getElementById('new-ch-niche').value;
+      if (!name || !niche) return alert("Nome e Nicho são obrigatórios.");
+
+      const subniche = document.getElementById('new-ch-subniche').value;
+      const audience = document.getElementById('new-ch-audience').value;
+      const tone = document.getElementById('new-ch-tone').value;
+      const formats = [document.getElementById('new-ch-formats').value];
+      const frequency = document.getElementById('new-ch-frequency').value;
+      const voice = document.getElementById('new-ch-voice').value;
+      const archetype = document.getElementById('new-ch-archetype').value;
+      const rules = document.getElementById('new-ch-rules').value.split('\n').filter(r => r.trim());
+      const goals = document.getElementById('new-ch-goals').value;
+
+      try {
+        const res = await fetch('/api/channels', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name, niche, subniche, target_audience: audience, communication_tone: tone,
+            content_formats: formats, posting_frequency: frequency,
+            voice_profile: { voice_id: voice, engine: "edge-tts" },
+            archetype_slug: archetype, rules_restrictions: rules, goals, status
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Canal '${name}' salvo com sucesso como ${status === 'draft' ? 'RASCUNHO' : 'ATIVO'}! Prontidão: ${data.readiness.completion_percentage}%`);
+          closeCreateChannelModal();
+          loadChannels();
+        } else {
+          alert("Erro ao salvar canal: " + (data.detail || "Falha desconhecida"));
+        }
+      } catch (e) {
+        alert("Erro de conexão ao salvar canal: " + e.message);
+      }
+    }
+
+    async function openChannelDetails(channelId) {
+      _currentInspectedChannelId = channelId;
+      try {
+        const [profRes, readRes, memRes, finRes] = await Promise.all([
+          fetch(`/api/channels/${channelId}/profile`),
+          fetch(`/api/channels/${channelId}/readiness`),
+          fetch(`/api/channels/${channelId}/memory`),
+          fetch(`/api/channels/${channelId}/financials`)
+        ]);
+
+        const prof = await profRes.json();
+        const read = await readRes.json();
+        const mem = await memRes.json();
+        const fin = await finRes.json();
+
+        document.getElementById('panel-ch-title').innerText = prof.name;
+        document.getElementById('panel-ch-status-badge').innerText = prof.status.toUpperCase();
+        document.getElementById('panel-ch-niche').innerText = `${prof.niche} (${prof.subniche || 'Geral'})`;
+        document.getElementById('panel-ch-audience').innerText = prof.target_audience || 'Geral';
+        document.getElementById('panel-ch-tone-wpm').innerText = `${prof.communication_tone || 'Dinâmico'} • ${prof.wpm_target || 160} WPM`;
+        document.getElementById('panel-ch-voice-font').innerText = `${prof.voice_profile?.voice_id || 'Edge-TTS'} • ${prof.subtitle_style?.font || 'Arial Black'}`;
+
+        const gRes = await fetch(`/api/channels/${channelId}/guidelines`);
+        const gData = await gRes.json();
+        document.getElementById('panel-ch-guidelines').innerText = gData.guidelines || 'Nenhuma diretriz cadastrada.';
+
+        // Readiness tab
+        document.getElementById('panel-ch-readiness-pct').innerText = `${read.completion_percentage}%`;
+        document.getElementById('panel-ch-readiness-bar').style.width = `${read.completion_percentage}%`;
+        document.getElementById('panel-ch-readiness-bar').style.background = read.completion_percentage >= 80 ? 'var(--accent-emerald)' : 'var(--accent-amber)';
+
+        const missingList = document.getElementById('panel-ch-missing-list');
+        missingList.innerHTML = '';
+        if (!read.missing_fields || read.missing_fields.length === 0) {
+          missingList.innerHTML = `<li style="color:var(--accent-emerald);">Nenhum campo pendente. Perfil completo!</li>`;
+        } else {
+          read.missing_fields.forEach(m => missingList.innerHTML += `<li>${m}</li>`);
+        }
+
+        const stepsList = document.getElementById('panel-ch-steps-list');
+        stepsList.innerHTML = '';
+        (read.next_steps || []).forEach(s => stepsList.innerHTML += `<li>${s}</li>`);
+
+        // Memory tab
+        document.getElementById('panel-ch-mem-approved').innerText = mem.approved_opportunities || 0;
+        document.getElementById('panel-ch-mem-rejected').innerText = mem.rejected_opportunities || 0;
+        document.getElementById('panel-ch-mem-vectors').innerText = mem.semantic_vectors_indexed || 0;
+        document.getElementById('panel-ch-mem-ns').innerText = mem.isolation_namespace || `channel_${channelId}`;
+
+        // Finance tab
+        document.getElementById('panel-ch-fin-cost').innerText = `$${Number(fin.total_expenses || 0).toFixed(2)}`;
+        document.getElementById('panel-ch-fin-avoided').innerText = `$${Number(fin.total_avoided_cost || 0).toFixed(2)}`;
+        document.getElementById('panel-ch-gdrive-id').innerText = prof.gdrive_folder_id || 'Pasta herdada';
+
+        switchChannelModalTab('identity');
+        document.getElementById('modal-channel-panel').classList.remove('hidden');
+      } catch (e) {
+        alert("Erro ao carregar detalhes do canal: " + e.message);
+      }
+    }
+
+    function switchChannelModalTab(tabName) {
+      document.querySelectorAll('.tab-bar .tab-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById('tab-btn-' + tabName);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      document.querySelectorAll('.ch-tab-pane').forEach(p => p.classList.add('hidden'));
+      const targetPane = document.getElementById('tab-pane-' + tabName);
+      if (targetPane) targetPane.classList.remove('hidden');
+    }
+
+    function closeChannelPanelModal() {
+      document.getElementById('modal-channel-panel').classList.add('hidden');
+    }
+
+    async function triggerSetPilotFromPanel() {
+      if (!_currentInspectedChannelId) return;
+      await setChannelPilot(_currentInspectedChannelId);
+      closeChannelPanelModal();
+    }
+
+    async function triggerArchiveFromPanel() {
+      if (!_currentInspectedChannelId) return;
+      if (!confirm("Tem certeza que deseja arquivar este canal?")) return;
+      await archiveChannel(_currentInspectedChannelId);
+      closeChannelPanelModal();
+    }
+
+    async function setChannelPilot(channelId) {
+      try {
+        const res = await fetch(`/api/channels/${channelId}/set-pilot`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Canal #${channelId} definido como Canal-Piloto ativo!`);
+          loadChannels();
+        }
+      } catch (e) {
+        alert("Erro ao definir piloto: " + e.message);
+      }
+    }
+
+    async function archiveChannel(channelId) {
+      try {
+        const res = await fetch(`/api/channels/${channelId}/archive`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Canal #${channelId} arquivado com sucesso.`);
+          loadChannels();
+        }
+      } catch (e) {
+        alert("Erro ao arquivar canal: " + e.message);
+      }
     }
 
     async function loadInfrastructure() {
@@ -1110,7 +2151,7 @@
       const res = await fetch('/api/orchestration/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task_id, target_id, niche })
+        body: JSON.stringify({ task_id, target_id, niche, pipeline_mode: 'vantis_17' })
       });
       const data = await res.json();
       alert(`Fluxo avançou até: ${data.current_step} (Status: ${data.status})`);

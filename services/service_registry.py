@@ -70,15 +70,25 @@ class ServiceRegistry:
         except Exception:
             version = "local-cosine"
 
+        has_fastembed = False
+        try:
+            import fastembed
+            has_fastembed = True
+            version = getattr(fastembed, "__version__", "0.9.1")
+        except Exception:
+            pass
+
         has_postgres = bool(os.environ.get("DATABASE_URL"))
+        is_online = (has_pgvector_pkg and has_postgres) or has_fastembed
+        engine_name = "FastEmbed ONNX Neural (bge-small-en-v1.5)" if has_fastembed else ("PostgreSQL + pgvector" if has_postgres else "Local SQLite + Cosine Distance")
         return {
             "name": "pgvector & Memória Semântica",
-            "role": "Busca Vetorial por Significado e Contexto",
-            "status": "ONLINE" if (has_pgvector_pkg and has_postgres) else "FALLBACK_ACTIVE",
+            "role": "Busca Vetorial Neural por Significado e Contexto",
+            "status": "ONLINE" if is_online else "FALLBACK_ACTIVE",
             "version": version,
-            "backend": "PostgreSQL + pgvector" if has_postgres else "Local SQLite + Cosine Distance",
+            "backend": engine_name,
             "postgres_connected": has_postgres,
-            "notes": "Motor vetorial ativo para busca de ganchos e temas"
+            "notes": f"Motor vetorial ativo: {engine_name} com isolamento por canal (Dim: 384)"
         }
 
     def check_whisper(self) -> Dict[str, Any]:

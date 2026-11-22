@@ -15,7 +15,56 @@ class WhisperTranscriptionService:
     def __init__(self, model_size: str = "base"):
         self.model_size = model_size
         self._model = None
+        self._patch_pyav_compat()
         self.engine_type = self._detect_engine()
+
+    def _patch_pyav_compat(self):
+        """Aplica patch de compatibilidade com PyAV 14+ onde metadata_errors foi descontinuado."""
+        try:
+            import faster_whisper.audio as fa
+            import av
+            import io
+            import gc
+            import numpy as np
+
+            def patched_decode_audio(input_file, sampling_rate=16000, split_stereo=False):
+                resampler = av.audio.resampler.AudioResampler(
+                    format="s16",
+                    layout="mono" if not split_stereo else "stereo",
+                    rate=sampling_rate,
+                )
+                raw_buffer = io.BytesIO()
+                dtype = None
+                try:
+                    container = av.open(input_file, mode="r", metadata_errors="ignore")
+                except TypeError:
+                    container = av.open(input_file, mode="r")
+
+                with container:
+                    frames = container.decode(audio=0)
+                    frames = fa._ignore_invalid_frames(frames)
+                    frames = fa._group_frames(frames, 500000)
+                    frames = fa._resample_frames(frames, resampler)
+                    for frame in frames:
+                        array = frame.to_ndarray()
+                        dtype = array.dtype
+                        raw_buffer.write(array)
+                del resampler
+                gc.collect()
+                audio = np.frombuffer(raw_buffer.getbuffer(), dtype=dtype)
+                audio = audio.astype(np.float32) / 32768.0
+                if split_stereo:
+                    return audio[0::2], audio[1::2]
+                return audio
+
+            fa.decode_audio = patched_decode_audio
+            try:
+                import faster_whisper.transcribe as ft
+                ft.decode_audio = patched_decode_audio
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     def _detect_engine(self) -> str:
         try:
@@ -134,11 +183,15 @@ class WhisperTranscriptionService:
         output_ass_path: str,
         highlight_color_hex: str = "&H0000FFFF&", # Amarelo vibrante
         primary_color_hex: str = "&H00FFFFFF&",   # Branco puro
+        outline_color_hex: str = "&H00000000&",   # Preto
+        font_name: str = "Arial",
+        font_size: int = 72,
         words_per_group: int = 4
     ) -> str:
         """
         Gera arquivo de legendas .ass formatado para 1080x1920 (9:16)
-        com destaque palavra por palavra estilo MrBeast / Alex Hormozi.
+        com destaque palavra por palavra estilo MrBeast / Alex Hormozi
+        e personalização de fontes e cores por canal.
         """
         ass_lines = [
             "[Script Info]",
@@ -149,8 +202,8 @@ class WhisperTranscriptionService:
             "",
             "[V4+ Styles]",
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-            f"Style: Default,Arial,68,{primary_color_hex},{highlight_color_hex},&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,2,40,40,480,1",
-            f"Style: Highlight,Arial,72,{highlight_color_hex},{primary_color_hex},&H00000000,&H80000000,-1,0,0,0,105,105,0,0,1,7,3,2,40,40,480,1",
+            f"Style: Default,{font_name},{font_size},{primary_color_hex},{highlight_color_hex},{outline_color_hex},&H80000000,-1,0,0,0,100,100,0,0,1,6,2,2,40,40,480,1",
+            f"Style: Highlight,{font_name},{font_size + 4},{highlight_color_hex},{primary_color_hex},{outline_color_hex},&H80000000,-1,0,0,0,105,105,0,0,1,7,3,2,40,40,480,1",
             "",
             "[Events]",
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
