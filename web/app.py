@@ -43,6 +43,7 @@ from services.media_processing.tts_engine import TTSNarrationService
 from services.media_processing.subtitle_generator import SubtitleGenerator
 from services.media_processing.audiovisual_pipeline import AudiovisualProductionPipeline
 from services.distribution.distribution_service import DistributionService
+from services.learning.audiovisual_learning_system import AudiovisualLearningSystem
 from agents.qc_agent import QualityControlAgent
 
 app = FastAPI(
@@ -85,6 +86,34 @@ subtitle_generator = SubtitleGenerator(channel_manager=channel_mgr)
 qc_agent = QualityControlAgent(ffmpeg_engine=ffmpeg_engine, channel_manager=channel_mgr)
 av_pipeline = AudiovisualProductionPipeline(channel_manager=channel_mgr)
 distribution_service = DistributionService(channel_manager=channel_mgr, gdrive_manager=gdrive_mgr)
+learning_system = AudiovisualLearningSystem()
+
+class VideoDiscoveryRequest(BaseModel):
+    source_id: str
+    original_url: str
+    title: str
+    creator: str
+    niche: str
+    duration_seconds: float
+    language: Optional[str] = "pt-BR"
+    views_count: Optional[int] = 0
+    likes_count: Optional[int] = 0
+    comment_count: Optional[int] = 0
+    raw_metadata: Optional[Dict[str, Any]] = None
+
+class BatchRunRequest(BaseModel):
+    batch_id: Optional[str] = None
+    batch_size: Optional[int] = 25
+    target_goal: Optional[int] = 7000
+
+class CrossPollinationRequest(BaseModel):
+    source_channel_id: int
+    target_channel_id: int
+    knowledge_id: int
+    rationale: str
+
+class TargetGoalRequest(BaseModel):
+    target_goal: int
 
 class TTSGenerateRequest(BaseModel):
     text: str
@@ -1279,6 +1308,176 @@ def get_audiovisual_run(task_id: str):
         if not row:
             raise HTTPException(status_code=404, detail="Execução audiovisual não encontrada")
         return dict(row)
+
+# ------------------------------------------------------------------------------
+# 14. SISTEMA DE APRENDIZADO AUDIOVISUAL MASSIVO (7.000+ VÍDEOS)
+# ------------------------------------------------------------------------------
+@app.get("/api/learning/overview")
+def get_learning_overview():
+    """Retorna KPIs gerais, progresso rumo à meta (7.000+), diversidade e auditoria."""
+    return learning_system.get_dashboard_overview()
+
+@app.get("/api/learning/catalog")
+def list_learning_catalog(
+    state: Optional[str] = None,
+    niche: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    """Retorna catálogo inteligente paginado com filtros de estado e nicho."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        query = "SELECT * FROM audiovisual_library WHERE 1=1"
+        params = []
+        if state:
+            query += " AND processing_state = ?"
+            params.append(state)
+        if niche:
+            query += " AND niche = ?"
+            params.append(niche)
+        query += " ORDER BY id DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        cursor.execute(query, tuple(params))
+        items = [dict(r) for r in cursor.fetchall()]
+
+        # Contagem total para paginação
+        count_query = "SELECT COUNT(*) FROM audiovisual_library WHERE 1=1"
+        count_params = []
+        if state:
+            count_query += " AND processing_state = ?"
+            count_params.append(state)
+        if niche:
+            count_query += " AND niche = ?"
+            count_params.append(niche)
+        cursor.execute(count_query, tuple(count_params))
+        total_count = cursor.fetchone()[0]
+
+        return {
+            "total": total_count,
+            "limit": limit,
+            "offset": offset,
+            "items": items
+        }
+
+@app.get("/api/learning/patterns")
+def list_learning_patterns(
+    niche: Optional[str] = None,
+    channel_id: Optional[int] = None,
+    knowledge_type: Optional[str] = None
+):
+    """Retorna conclusões de conhecimento editorial estruturado com referências a vídeos."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        query = "SELECT * FROM editorial_knowledge_library WHERE 1=1"
+        params = []
+        if niche:
+            query += " AND (niche = ? OR niche = 'universal')"
+            params.append(niche)
+        if channel_id is not None:
+            query += " AND (target_channel_id = ? OR target_channel_id IS NULL)"
+            params.append(channel_id)
+        if knowledge_type:
+            query += " AND knowledge_type = ?"
+            params.append(knowledge_type)
+        query += " ORDER BY confidence_score DESC"
+
+        cursor.execute(query, tuple(params))
+        items = [dict(r) for r in cursor.fetchall()]
+        for item in items:
+            item["evidence_video_ids"] = json.loads(item["evidence_video_ids"] or "[]")
+        return items
+
+@app.get("/api/learning/experiments")
+def list_learning_experiments(channel_id: Optional[int] = None, status: Optional[str] = None):
+    """Lista experimentos editoriais baseados em hipóteses e evidências."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        query = """
+            SELECT e.*, c.name as channel_name
+            FROM editorial_experiments e
+            LEFT JOIN channels c ON e.channel_id = c.id
+            WHERE 1=1
+        """
+        params = []
+        if channel_id is not None:
+            query += " AND e.channel_id = ?"
+            params.append(channel_id)
+        if status:
+            query += " AND e.status = ?"
+            params.append(status)
+        query += " ORDER BY e.created_at DESC"
+
+        cursor.execute(query, tuple(params))
+        return [dict(r) for r in cursor.fetchall()]
+
+@app.post("/api/learning/discover")
+def discover_learning_video(req: VideoDiscoveryRequest):
+    """Descobre e ingere um novo vídeo na biblioteca com checagem de diversidade e fingerprint."""
+    try:
+        return learning_system.discover_video(
+            source_id=req.source_id,
+            original_url=req.original_url,
+            title=req.title,
+            creator=req.creator,
+            niche=req.niche,
+            duration_seconds=req.duration_seconds,
+            language=req.language or "pt-BR",
+            views_count=req.views_count or 0,
+            likes_count=req.likes_count or 0,
+            comment_count=req.comment_count or 0,
+            raw_metadata=req.raw_metadata
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/learning/batch-run")
+def trigger_learning_batch(req: BatchRunRequest):
+    """Dispara execução ou retomada de lote de análise com persistência de checkpoints."""
+    batch_id = req.batch_id or f"batch_{int(time.time())}"
+    try:
+        return learning_system.run_batch_processing(
+            batch_id=batch_id,
+            batch_size=req.batch_size or 25,
+            target_goal=req.target_goal or 7000
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/learning/audit")
+def run_learning_quality_audit():
+    """Executa auditoria de qualidade (viés, integridade de evidências, health score)."""
+    return learning_system.run_quality_audit()
+
+@app.post("/api/learning/cross-pollinate")
+def execute_cross_pollination(req: CrossPollinationRequest):
+    """Transfere técnica editorial entre canais com justificativa e experimento de validação."""
+    try:
+        return learning_system.cross_pollinate_technique(
+            source_channel_id=req.source_channel_id,
+            target_channel_id=req.target_channel_id,
+            knowledge_id=req.knowledge_id,
+            transfer_rationale=req.rationale
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/learning/target-goal")
+def update_target_goal(req: TargetGoalRequest):
+    """Atualiza a meta global de aprendizado audiovisual (ex: 7000 -> 10000)."""
+    try:
+        updated = learning_system.set_target_goal(req.target_goal)
+        return {"target_goal": updated, "status": "UPDATED"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/channels/{channel_id}/editorial-memory")
+def get_channel_editorial_memory_route(channel_id: int):
+    """Retorna memória editorial isolada de um dos 5 canais piloto."""
+    try:
+        return learning_system.get_channel_editorial_memory(channel_id=channel_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 # Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"

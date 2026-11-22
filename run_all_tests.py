@@ -22,7 +22,8 @@ test_files = [
     "tests.test_fase9_agent_architecture",
     "tests.test_fase10_audiovisual_pipeline",
     "tests.test_fase11_pilot_channels_and_dashboard",
-    "tests.test_fase12_deployment_and_editorial_training"
+    "tests.test_fase12_deployment_and_editorial_training",
+    "tests.test_fase13_massive_audiovisual_learning"
 ]
 
 for tf in test_files:

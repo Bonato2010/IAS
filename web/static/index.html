@@ -4,20 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VANTIS — Central de Inteligência & Operações Audiovisuais</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/branding/favicon/vantis-favicon-32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="/static/assets/branding/favicon/vantis-favicon-64.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
-      --bg-base: #090d16;
-      --bg-surface: #0f172a;
-      --bg-surface-elevated: #1e293b;
-      --border-subtle: #1e293b;
-      --border-strong: #334155;
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --text-tertiary: #64748b;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --accent-cyan: #0284c7;
+      --bg-base: #080E1A;
+      --bg-surface: #1C202B;
+      --bg-surface-elevated: #242a38;
+      --border-subtle: #2d3545;
+      --border-strong: #3e485e;
+      --text-primary: #FFFFFF;
+      --text-secondary: #AAB0BA;
+      --text-tertiary: #6e7787;
+      --primary: #0052F5;
+      --primary-hover: #0043c7;
+      --accent-cyan: #00CFE8;
       --accent-emerald: #059669;
       --accent-amber: #d97706;
       --accent-rose: #e11d48;
@@ -279,9 +281,9 @@
   <!-- SIDEBAR NAVEGAÇÃO -->
   <aside class="sidebar">
     <div class="brand-header">
-      <div class="brand-icon" style="background:linear-gradient(135deg, #06b6d4, #3b82f6); font-weight:800;">V</div>
+      <img src="/static/assets/branding/symbol/vantis-symbol-color.svg" alt="Vantis" style="width:34px; height:34px; object-fit:contain; filter:drop-shadow(0 2px 8px rgba(0,82,245,0.4));">
       <div class="brand-text">
-        <span class="brand-title">VANTIS</span>
+        <span class="brand-title" style="letter-spacing:1px; font-weight:800;">VANTIS</span>
         <span class="brand-sub">Sistema Operacional de Mídia</span>
       </div>
     </div>
@@ -583,29 +585,166 @@
       </div>
     </section>
 
-    <!-- 5. VIEW: INTELIGÊNCIA & MEMÓRIA CENTRAL -->
+    <!-- 5. VIEW: INTELIGÊNCIA AUDIOVISUAL MASSIVA (7.000+ VÍDEOS) -->
     <section id="view-intelligence" class="view-pane hidden">
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title"><i class="fa-solid fa-network-wired"></i> Grafo de Conhecimento e Padrões Extraídos</span>
-          <span class="badge badge-success">Memória Central Ativa</span>
+      <!-- HEADER & META CONFIGURÁVEL -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header" style="flex-wrap:wrap; gap:12px;">
+          <div>
+            <span class="panel-title"><i class="fa-solid fa-brain" style="color:var(--accent-cyan);"></i> Sistema de Aprendizado Audiovisual Massivo</span>
+            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:4px;">
+              Biblioteca de pesquisa, análise multimodal profunda e síntese editorial para os 5 canais do VANTIS.
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="badge badge-primary" id="learning-target-badge"><i class="fa-solid fa-bullseye"></i> Meta: 7.000 Vídeos</span>
+            <button class="btn btn-sm btn-outline" onclick="promptChangeTargetGoal()"><i class="fa-solid fa-sliders"></i> Alterar Meta</button>
+            <button class="btn btn-sm btn-primary" onclick="triggerLearningBatch()"><i class="fa-solid fa-play"></i> Processar Lote</button>
+            <button class="btn btn-sm btn-outline" onclick="runLearningAudit()"><i class="fa-solid fa-shield-halved"></i> Auditoria de Qualidade</button>
+          </div>
         </div>
-        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
-          Estruturas psicológicas, fórmulas de abertura e cadências de corte aprendidas a partir do catálogo.
-        </p>
+
+        <!-- BARRA DE PROGRESSO GLOBAL RUMO À META -->
+        <div style="margin-top:16px;">
+          <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:6px;">
+            <span style="color:var(--text-secondary);">Progresso Geral da Biblioteca:</span>
+            <strong id="learning-progress-text" style="color:var(--accent-cyan);">0.0% (0 / 7.000)</strong>
+          </div>
+          <div style="background:var(--bg-surface-elevated); height:10px; border-radius:5px; overflow:hidden; border:1px solid var(--border-subtle);">
+            <div id="learning-progress-bar" style="background:linear-gradient(90deg, var(--primary), var(--accent-cyan)); height:100%; width:0%; transition:width 0.4s ease;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 CARDS DE MÉTRICAS PRINCIPAIS -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:16px;">
+        <div class="stat-card">
+          <div class="stat-label"><i class="fa-solid fa-compass"></i> Total Descobertos</div>
+          <div class="stat-value" id="stat-learning-discovered">0</div>
+          <div class="stat-sub" style="color:var(--text-tertiary);">Rastreados via fontes públicas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><i class="fa-solid fa-fingerprint"></i> Únicos (Deduplicados)</div>
+          <div class="stat-value" id="stat-learning-unique" style="color:var(--primary);">0</div>
+          <div class="stat-sub" style="color:var(--accent-emerald);"><i class="fa-solid fa-check"></i> Fingerprint multimodal</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><i class="fa-solid fa-circle-check"></i> Totalmente Analisados</div>
+          <div class="stat-value" id="stat-learning-fully" style="color:var(--accent-cyan);">0</div>
+          <div class="stat-sub" style="color:var(--text-tertiary);">Texto + Áudio + Vídeo concluídos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><i class="fa-solid fa-shield-heart"></i> Health Score Auditoria</div>
+          <div class="stat-value" id="stat-learning-health" style="color:var(--accent-emerald);">100%</div>
+          <div class="stat-sub" style="color:var(--text-tertiary);" id="stat-learning-bias-text">Zero viés de criador</div>
+        </div>
+      </div>
+
+      <!-- MODALIDADES & DIVERSIDADE -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+        <!-- Card de Modalidades Processadas -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title" style="font-size:0.92rem;"><i class="fa-solid fa-layer-group"></i> Estágios de Análise Multimodal</span>
+          </div>
+          <div id="learning-modalities-container" style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-file-lines" style="color:var(--text-tertiary);"></i> Metadados Extraídos</span>
+              <strong id="badge-mod-metadata">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-quote-left" style="color:var(--accent-cyan);"></i> Transcrição & Roteiro Analisados</span>
+              <strong id="badge-mod-transcript">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-waveform" style="color:var(--accent-emerald);"></i> Acústica & EBU R128 (-14 LUFS)</span>
+              <strong id="badge-mod-audio">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-film" style="color:var(--primary);"></i> Edição Visual & Cortes 9:16</span>
+              <strong id="badge-mod-visual">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; padding:6px 10px; background:var(--bg-surface-elevated); border-radius:4px;">
+              <span><i class="fa-solid fa-ban" style="color:var(--accent-rose);"></i> Descartados por Governança</span>
+              <strong id="badge-mod-rejected" style="color:var(--accent-rose);">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card de Diversidade da Biblioteca -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title" style="font-size:0.92rem;"><i class="fa-solid fa-chart-pie"></i> Diversidade & Distribuição</span>
+          </div>
+          <div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:10px;">
+            Nenhum criador pode exceder 50 vídeos (cap anti-monopólio).
+          </div>
+          <div style="font-size:0.8rem; margin-bottom:8px;"><strong>Distribuição por Nicho:</strong></div>
+          <div id="learning-niche-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
+            <span class="badge badge-outline">Carregando nichos...</span>
+          </div>
+          <div style="font-size:0.8rem; margin-bottom:8px;"><strong>Distribuição por Idioma:</strong></div>
+          <div id="learning-lang-chips" style="display:flex; flex-wrap:wrap; gap:6px;">
+            <span class="badge badge-outline">Carregando idiomas...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BIBLIOTECA DE CONHECIMENTO EDITORIAL -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <div>
+            <span class="panel-title"><i class="fa-solid fa-lightbulb" style="color:var(--accent-amber);"></i> Conhecimento Editorial & Princípios com Evidências</span>
+            <div style="font-size:0.78rem; color:var(--text-tertiary); margin-top:2px;">
+              Padrões validados matematicamente e vinculados aos IDs dos vídeos analisados.
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline" onclick="loadLearningKnowledge()"><i class="fa-solid fa-rotate"></i> Atualizar</button>
+        </div>
         <div class="data-table-wrapper">
           <table>
             <thead>
               <tr>
-                <th>Tipo de Padrão</th>
-                <th>Título / Fórmula</th>
-                <th>Nicho</th>
-                <th>Efetividade</th>
-                <th>Amostras</th>
+                <th>Tipo</th>
+                <th>Título / Princípio</th>
+                <th>Nicho / Canal</th>
+                <th>Classificação</th>
+                <th>Confiança</th>
+                <th>Evidências (Vídeos)</th>
+                <th>Ação Recomendada</th>
               </tr>
             </thead>
-            <tbody id="intelligence-nodes-tbody">
-              <tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-tertiary);">Carregando inteligência central...</td></tr>
+            <tbody id="learning-knowledge-tbody">
+              <tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-tertiary);">Carregando biblioteca de conhecimento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- EXPERIMENTOS EDITORIAIS -->
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <span class="panel-title"><i class="fa-solid fa-flask" style="color:var(--accent-cyan);"></i> Ciclo de Experimentos Editoriais nos 5 Canais</span>
+            <div style="font-size:0.78rem; color:var(--text-tertiary); margin-top:2px;">
+              Hipótese -> Produção -> Avaliação -> Retroalimentação da Memória
+            </div>
+          </div>
+        </div>
+        <div class="data-table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Canal</th>
+                <th>Título do Experimento</th>
+                <th>Hipótese Editorial</th>
+                <th>Métrica de Avaliação</th>
+                <th>Status</th>
+                <th>Conclusão & Aprendizado</th>
+              </tr>
+            </thead>
+            <tbody id="learning-experiments-tbody">
+              <tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-tertiary);">Nenhum experimento editorial ativo.</td></tr>
             </tbody>
           </table>
         </div>
@@ -1459,7 +1598,8 @@
           let checksHtml = '';
           checks.forEach(chk => {
             const icon = chk.passed ? '<i class="fa-solid fa-check" style="color:var(--accent-emerald);"></i>' : '<i class="fa-solid fa-xmark" style="color:var(--accent-rose);"></i>';
-            checksHtml += `<li style="font-size:0.78rem; margin-bottom:4px; list-style:none;">${icon} <strong>${chk.check}:</strong> ${chk.details || 'Conforme'}</li>`;
+            const detailText = typeof chk.details === 'object' ? JSON.stringify(chk.details) : (chk.details || 'Conforme');
+            checksHtml += `<li style="font-size:0.78rem; margin-bottom:4px; list-style:none;">${icon} <strong>${chk.check}:</strong> ${detailText}</li>`;
           });
 
           let mediaPreviewHtml = '';
@@ -1705,25 +1845,177 @@
     }
 
     async function loadIntelligence() {
-      const res = await fetch('/api/memory/nodes');
-      const nodes = await res.json();
-      const tbody = document.getElementById('intelligence-nodes-tbody');
-      tbody.innerHTML = '';
-      if (!nodes || nodes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-tertiary);">Nenhum nó de conhecimento registrado.</td></tr>`;
-        return;
+      try {
+        const res = await fetch('/api/learning/overview');
+        const data = await res.json();
+
+        // 1. Meta e Progresso
+        const goal = data.target_goal || 7000;
+        const progressPct = data.progress_percentage || 0;
+        const fullyAnalyzed = data.total_fully_analyzed || 0;
+        document.getElementById('learning-target-badge').innerHTML = `<i class="fa-solid fa-bullseye"></i> Meta: ${goal.toLocaleString()} Vídeos`;
+        document.getElementById('learning-progress-text').innerText = `${progressPct}% (${fullyAnalyzed.toLocaleString()} / ${goal.toLocaleString()})`;
+        document.getElementById('learning-progress-bar').style.width = `${Math.min(100, progressPct)}%`;
+
+        // 2. 4 Cards de Métricas
+        document.getElementById('stat-learning-discovered').innerText = (data.total_discovered || 0).toLocaleString();
+        document.getElementById('stat-learning-unique').innerText = (data.total_valid_unique || 0).toLocaleString();
+        document.getElementById('stat-learning-fully').innerText = (data.total_fully_analyzed || 0).toLocaleString();
+        document.getElementById('stat-learning-health').innerText = (data.health_score || 100) + '%';
+
+        // 3. Modalidades
+        const states = data.states_breakdown || {};
+        document.getElementById('badge-mod-metadata').innerText = states.metadata_processed || 0;
+        document.getElementById('badge-mod-transcript').innerText = states.transcript_processed || 0;
+        document.getElementById('badge-mod-audio').innerText = states.audio_processed || 0;
+        document.getElementById('badge-mod-visual').innerText = states.visual_processed || 0;
+        document.getElementById('badge-mod-rejected').innerText = states.rejected || 0;
+
+        // 4. Diversidade de Nichos e Idiomas
+        const nicheChips = document.getElementById('learning-niche-chips');
+        nicheChips.innerHTML = '';
+        const niches = data.niche_distribution || {};
+        if (Object.keys(niches).length === 0) {
+          nicheChips.innerHTML = `<span class="badge badge-outline">Nenhum nicho registrado</span>`;
+        } else {
+          for (const [niche, count] of Object.entries(niches)) {
+            nicheChips.innerHTML += `<span class="badge badge-primary">${niche}: <strong>${count}</strong></span>`;
+          }
+        }
+
+        const langChips = document.getElementById('learning-lang-chips');
+        langChips.innerHTML = '';
+        const langs = data.language_distribution || {};
+        if (Object.keys(langs).length === 0) {
+          langChips.innerHTML = `<span class="badge badge-outline">pt-BR</span>`;
+        } else {
+          for (const [lang, count] of Object.entries(langs)) {
+            langChips.innerHTML += `<span class="badge badge-outline">${lang}: <strong>${count}</strong></span>`;
+          }
+        }
+
+        // 5. Tabelas de Conhecimento e Experimentos
+        await loadLearningKnowledge();
+        await loadLearningExperiments();
+      } catch (e) {
+        console.error("Erro ao carregar inteligência:", e);
       }
-      nodes.forEach(n => {
-        tbody.innerHTML += `
-          <tr>
-            <td><span class="badge badge-primary">${n.node_type}</span></td>
-            <td><strong>${n.title}</strong></td>
-            <td>${n.category_slug || 'Universal'}</td>
-            <td><strong style="color:var(--accent-emerald);">${n.effectiveness_score}%</strong></td>
-            <td>${n.sample_count || 1}</td>
-          </tr>
-        `;
-      });
+    }
+
+    async function loadLearningKnowledge() {
+      try {
+        const res = await fetch('/api/learning/patterns');
+        const items = await res.json();
+        const tbody = document.getElementById('learning-knowledge-tbody');
+        tbody.innerHTML = '';
+        if (!items || items.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-tertiary);">Nenhum conhecimento consolidado ainda. Processe lotes de vídeos para sintetizar padrões.</td></tr>`;
+          return;
+        }
+
+        items.forEach(k => {
+          const confPct = Math.round((k.confidence_score || 0.85) * 100);
+          const evList = k.evidence_video_ids || [];
+          const evBadge = evList.length > 0 
+            ? `<span class="badge badge-outline" title="${evList.join(', ')}">${k.evidence_count} vídeos (${evList.slice(0, 2).join(', ')}${evList.length > 2 ? '...' : ''})</span>` 
+            : `<span class="badge badge-warning">Sem evidência</span>`;
+
+          tbody.innerHTML += `
+            <tr>
+              <td><span class="badge badge-primary">${k.knowledge_type}</span></td>
+              <td><strong>${k.title}</strong><div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">${k.summary}</div></td>
+              <td>${k.niche || 'universal'}</td>
+              <td><span class="badge badge-success" style="font-size:0.7rem;">${k.classification}</span></td>
+              <td><strong style="color:var(--accent-emerald);">${confPct}%</strong></td>
+              <td>${evBadge}</td>
+              <td style="font-size:0.78rem; color:var(--accent-cyan);">${k.actionable_recommendation || '—'}</td>
+            </tr>
+          `;
+        });
+      } catch (e) {
+        console.error("Erro ao carregar conhecimento:", e);
+      }
+    }
+
+    async function loadLearningExperiments() {
+      try {
+        const res = await fetch('/api/learning/experiments');
+        const items = await res.json();
+        const tbody = document.getElementById('learning-experiments-tbody');
+        tbody.innerHTML = '';
+        if (!items || items.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-tertiary);">Nenhum experimento editorial ativo no momento.</td></tr>`;
+          return;
+        }
+
+        items.forEach(exp => {
+          const statusBadge = exp.status === 'EVALUATED' 
+            ? '<span class="badge badge-success"><i class="fa-solid fa-check"></i> AVALIADO</span>'
+            : '<span class="badge badge-warning"><i class="fa-solid fa-spinner fa-spin"></i> EM ANDAMENTO</span>';
+
+          tbody.innerHTML += `
+            <tr>
+              <td><strong>${exp.channel_name || 'Canal #' + exp.channel_id}</strong></td>
+              <td><strong>${exp.title}</strong></td>
+              <td style="font-size:0.8rem; color:var(--text-secondary);">${exp.hypothesis}</td>
+              <td><code>${exp.evaluation_metric}</code></td>
+              <td>${statusBadge}</td>
+              <td style="font-size:0.8rem; color:var(--text-primary);">${exp.conclusion || 'Aguardando coleta de métricas reais...'}</td>
+            </tr>
+          `;
+        });
+      } catch (e) {
+        console.error("Erro ao carregar experimentos:", e);
+      }
+    }
+
+    async function triggerLearningBatch() {
+      const batchSize = prompt("Tamanho do lote de análise para processamento contínuo:", "25");
+      if (!batchSize) return;
+
+      try {
+        const res = await fetch('/api/learning/batch-run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch_size: parseInt(batchSize), target_goal: 7000 })
+        });
+        const data = await res.json();
+        alert(`Lote executado com sucesso!\nProcessados neste lote: ${data.batch_processed}\nTotal acumulado: ${data.total_processed}\nStatus: ${data.status}`);
+        loadIntelligence();
+      } catch (e) {
+        alert("Erro ao disparar lote: " + e.message);
+      }
+    }
+
+    async function runLearningAudit() {
+      try {
+        const res = await fetch('/api/learning/audit', { method: 'POST' });
+        const audit = await res.json();
+        alert(`Auditoria de Qualidade Concluída!\nHealth Score Global: ${audit.overall_health_score}%\nTotal Únicos Válidos: ${audit.total_valid_unique}\nTotal Analisados: ${audit.total_fully_analyzed}\nViés de Fonte Detectado: ${audit.has_source_bias ? 'SIM (Ajuste recomendado)' : 'NÃO (Equilibrado)'}`);
+        loadIntelligence();
+      } catch (e) {
+        alert("Erro ao executar auditoria: " + e.message);
+      }
+    }
+
+    async function promptChangeTargetGoal() {
+      const newGoal = prompt("Insira a nova meta de vídeos da biblioteca audiovisual (ex: 7000, 10000, 20000):", "7000");
+      if (!newGoal) return;
+      const num = parseInt(newGoal);
+      if (isNaN(num) || num < 1) return alert("Meta inválida.");
+
+      try {
+        const res = await fetch('/api/learning/target-goal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target_goal: num })
+        });
+        const data = await res.json();
+        alert(`Meta atualizada com sucesso para ${data.target_goal.toLocaleString()} vídeos!`);
+        loadIntelligence();
+      } catch (e) {
+        alert("Erro ao atualizar meta: " + e.message);
+      }
     }
 
     async function submitCriticalAnalysis() {
