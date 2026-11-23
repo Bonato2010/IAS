@@ -227,7 +227,7 @@ class AudiovisualLearningSystem:
     # -------------------------------------------------------------------------
     # 3. ANÁLISE PROFUNDA MULTIMODAL VERIFICÁVEL
     # -------------------------------------------------------------------------
-    def process_metadata(self, source_id: str, tags: Optional[List[str]] = None, subcategory: Optional[str] = None) -> Dict[str, Any]:
+    def process_metadata(self, source_id: str, tags: Optional[List[str]] = None, subcategory: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """Etapa 1: Análise aprofundada de metadados."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -260,7 +260,8 @@ class AudiovisualLearningSystem:
         self,
         source_id: str,
         transcript_text: str,
-        word_timestamps: Optional[List[Dict[str, Any]]] = None
+        word_timestamps: Optional[List[Dict[str, Any]]] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         """
         Etapa 2: Análise textual e narrativa da fala.
@@ -327,7 +328,8 @@ class AudiovisualLearningSystem:
         speech_clarity_score: float = 88.0,
         estimated_lufs: float = -14.2,
         pauses_ratio: float = 0.12,
-        voice_music_balance: str = "balanced"
+        voice_music_balance: str = "balanced",
+        **kwargs
     ) -> Dict[str, Any]:
         """
         Etapa 3: Análise acústica e sonoplastia do áudio.
@@ -369,7 +371,9 @@ class AudiovisualLearningSystem:
         aspect_ratio: str = "9:16",
         has_subtitles_on_screen: bool = True,
         framing_changes: int = 4,
-        broll_presence_ratio: float = 0.35
+        broll_presence_ratio: float = 0.35,
+        dominant_composition: Optional[str] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         """
         Etapa 4: Análise visual e ritmo de edição.
@@ -397,6 +401,7 @@ class AudiovisualLearningSystem:
                 "has_subtitles_on_screen": has_subtitles_on_screen,
                 "framing_changes": framing_changes,
                 "broll_presence_ratio": broll_presence_ratio,
+                "dominant_composition": dominant_composition or "standard",
                 "processed_at": time.time()
             }
 

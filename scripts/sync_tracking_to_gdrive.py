@@ -20,6 +20,9 @@ DOCS_TO_SYNC = [
     "DECISIONS.md",
     "BLOCKERS.md"
 ]
+ADDITIONAL_DOCS = [
+    ("FASE14_INDEPENDENT_AUDIT.md", BASE_DIR / "docs" / "audits" / "FASE14_INDEPENDENT_AUDIT.md")
+]
 
 def sync_tracking_to_gdrive():
     mgr = GDriveManager()
@@ -39,6 +42,35 @@ def sync_tracking_to_gdrive():
         local_file = local_dir / doc_name
         if not local_file.exists():
             print(f"[Aviso] Arquivo local não encontrado: {local_file}")
+            continue
+
+        media = MediaFileUpload(str(local_file), mimetype="text/markdown", resumable=True)
+
+        if doc_name in existing_files:
+            file_id = existing_files[doc_name]
+            print(f"[Drive Sync] Atualizando {doc_name} (ID: {file_id})...")
+            updated = service.files().update(
+                fileId=file_id,
+                media_body=media,
+                fields="id, name, modifiedTime"
+            ).execute()
+            print(f" -> Atualizado com sucesso: {updated.get('name')} em {updated.get('modifiedTime')}")
+        else:
+            print(f"[Drive Sync] Criando novo {doc_name} na pasta...")
+            meta = {
+                "name": doc_name,
+                "parents": [CTRL_FOLDER_ID]
+            }
+            created = service.files().create(
+                body=meta,
+                media_body=media,
+                fields="id, name, webViewLink"
+            ).execute()
+            print(f" -> Criado com sucesso: {created.get('name')} (ID: {created.get('id')})")
+
+    for doc_name, local_file in ADDITIONAL_DOCS:
+        if not local_file.exists():
+            print(f"[Aviso] Arquivo adicional local não encontrado: {local_file}")
             continue
 
         media = MediaFileUpload(str(local_file), mimetype="text/markdown", resumable=True)
