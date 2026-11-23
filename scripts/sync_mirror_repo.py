@@ -28,6 +28,7 @@ DIRS_TO_SYNC = [
     "scripts",
     "docs/gdrive_control",
     "docs/audit",
+    "docs/audits",
     "features/assets"
 ]
 
