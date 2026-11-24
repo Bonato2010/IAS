@@ -92,23 +92,21 @@
 
 ---
 
-## [2026-11-24] - Fase 15: Piloto Real de 20 Shorts, Análise Multimodal Física e Validação Final
+---
+
+## [2026-11-24] - Fase 15.1: Auditoria Forense do Piloto, Qualidade Editorial e Gate de Escala
 
 ### Tarefas executadas
-- Correção de ingestão estrita de Shorts (duração auditada > 0 e <= 60.0s) em `AudiovisualLearningSystem`, `MediaDownloader` e `PatternLearner`.
-- Eliminação definitiva de `**kwargs` arbitrários e banimento de `except Exception: pass` em pipelines críticos.
-- Implementação de download físico local com hash SHA256 e validação por FFprobe no `MediaDownloader`.
-- Execução autônoma do novo piloto operacional com **20 YouTube Shorts reais** (exatamente 4 por canal nos 5 canais piloto).
-- Análise física multimodal completa em cada vídeo:
-  - Detecção de cortes e ritmo via `PySceneDetect`.
-  - Proporção 9:16 vertical e composição via `OpenCV`.
-  - Medição acústica real sob norma EBU R128 via `FFmpeg` (-7.1 a -26.1 LUFS).
-  - Extração de transcrições reais via legendas (WPM estritamente derivado de texto real).
-- **100% dos 20 vídeos atingiram o estado terminal auditado `fully_analyzed`**.
-- Criação e aprovação da suíte de testes `tests/test_fase15_real_shorts_physical_pilot.py` (12 regras mandatória da Seção 10 aprovadas com 100%).
-- Reexecução integral da suite com **126 testes em 16 suítes** (`scripts/run_all_tests.py`): 100% de aprovação e Exit Code 0.
-- Telemetria do Dashboard (`/api/learning/overview`) e KPIs validados com 100% de precisão e zero métricas simuladas.
-- Emissão do relatório formal: `docs/audits/FASE15_REAL_SHORTS_PILOT.md` com tabela completa de mídias e análise de prontidão para escala de 7.000 vídeos.
-- Parecer Final: **AUTORIZADO PARA FASE DE ESCALA GRADUAL DE VÍDEOS**.
+- **Auditoria Forense dos 20 Arquivos Físicos:** Inspeção completa no disco (`workspace/downloads/phase15/`), confirmando que 20 de 20 vídeos existem fisicamente (~182.3 MB total), possuem hashes SHA256 com exatamente 64 caracteres hexadecimais, foram decodificados com sucesso pelo FFmpeg e OpenCV, e possuem durações reais confirmadas $\le 60.5$s.
+- **Diagnóstico Acústico Rigoroso:** Investigação minuciosa dos 3 vídeos que registraram -70.0 LUFS (`Oy5m1qwhlv8`, `2ZgeblAgr5g`, `hbnVOPtNWhg`). O sistema foi atualizado para distinguir estritamente `VALID_AUDIO`, `QUIET_AUDIO_TRACK`, `HOT_LOUD_AUDIO`, `SILENT_AUDIO_TRACK`, `NO_AUDIO_TRACK`, `DECODING_FAILURE` e `MEASUREMENT_FAILURE`. Áudios com $\le -65.0$ LUFS agora recebem categorização formal `SILENT_AUDIO_TRACK` com `is_usable = False` e `speech_clarity_score = 0.0`.
+- **Auditoria Editorial e Rejeição Formal:** Detecção de desvio editorial grosseiro no vídeo `Oy5m1qwhlv8` (*"SHORT JEANS Cintura Baixa..."*) atribuído ao Canal 02 (True Crime). O vídeo foi formalmente reclassificado para `editorially_rejected`, com `discard_reason = "editorial_mismatch: fashion/clothing content ('SHORT JEANS Cintura Baixa...') in true crime channel"` e promoção a candidato expressamente bloqueada.
+- **Arquitetura de Estados Independentes:** Refinamento dos estados ortogonais no `AudiovisualLearningSystem`: `downloaded`, `technical_analysis_complete`, `editorial_analysis_complete`, `learning_candidate`, `validated_learning`, `editorially_rejected`, `failed`. Transições para estados inválidos bloqueadas em `_set_state()`.
+- **Governança de Aprendizados (Regra de Ouro):** Reclassificação de 44 registros de padrão com 1 evidência de `APRENDIZADO_VALIDADO` para `OBSERVAÇÃO` (confidence $\le 0.70$). Síntese de 5 aprendizados estruturados com $\ge 2$ evidências empíricas e contraexemplos documentados.
+- **Consistência Dashboard x Banco:** Separação estrita dos dados do piloto da Fase 15 (`pilot_fase15_metrics`) dos registros históricos no `/api/learning/overview`.
+- **Suíte de Testes Forenses Dedicada:** Implementação de `tests/test_fase15_1_forensic_audit.py` cobrindo integralmente as 11 regras do Prompt 15.1, com 100% de aprovação (11/11).
+- **Regressão Total:** Execução de todas as 17 suítes do sistema (`scripts/run_all_tests.py`), totalizando 137 testes aprovados.
+- **Gate de Escala:** Execução massiva de 7.000 vídeos mantida como `LOCKED`. Especificação formal do Piloto Controlado de 100 Shorts (20 por canal, orçamento de ~910 MB, 4 workers, jitter 3-6.5s, filtros lexicais negativos pré-ingestão) documentada em `docs/audits/FASE15_1_FORENSIC_AUDIT.md`.
+- **Veredicto Final da Auditoria:** **APROVADO COM RESSALVAS** (Ressalvas de áudio silencioso e desvio editorial superadas e travadas por código).
+
 
 

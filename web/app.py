@@ -1479,6 +1479,36 @@ def get_channel_editorial_memory_route(channel_id: int):
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+@app.get("/api/learning/pilot-forensic")
+def get_pilot_forensic_metrics():
+    """Retorna telemetria e evidências forenses auditadas do piloto de 20 Shorts (Fase 15.1)."""
+    overview = learning_system.get_dashboard_overview()
+    return {
+        "status": "AUDITED",
+        "pilot_metrics": overview.get("pilot_fase15_metrics", {}),
+        "granular_indicators": overview.get("granular_indicators", {})
+    }
+
+@app.post("/api/learning/evaluate-editorial/{source_id}")
+def evaluate_editorial_route(source_id: str, channel_id: Optional[int] = None, force_verdict: Optional[str] = None):
+    """Avalia conformidade editorial de um Short contra a persona do canal."""
+    try:
+        return learning_system.evaluate_editorial_adherence(
+            source_id=source_id,
+            target_channel_id=channel_id,
+            force_verdict=force_verdict
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/learning/promote-candidate/{source_id}")
+def promote_candidate_route(source_id: str):
+    """Promove um Short para learning_candidate após validação técnica e editorial."""
+    try:
+        return learning_system.promote_to_learning_candidate(source_id=source_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"
 static_dir.mkdir(parents=True, exist_ok=True)

@@ -24,8 +24,17 @@ from database.db import get_db_connection
 
 logger = logging.getLogger("Vantis.AudiovisualLearning")
 
-# Estados rigorosos de processamento
+# Estados rigorosos de processamento (Fase 15.1)
 VALID_STATES = {
+    # Novos estados estruturais independentes Fase 15.1
+    "downloaded",
+    "technical_analysis_complete",
+    "editorial_analysis_complete",
+    "learning_candidate",
+    "validated_learning",
+    "editorially_rejected",
+    "failed",
+    # Estados de etapas e compatibilidade
     "discovered",
     "short_validated",
     "metadata_processed",
@@ -38,6 +47,46 @@ VALID_STATES = {
     "fully_analyzed",
     "rejected",
     "error"
+}
+
+# Categorias acústicas rigorosas (Fase 15.1)
+ACOUSTIC_CLASSIFICATIONS = {
+    "VALID_AUDIO",
+    "SILENT_AUDIO_TRACK",
+    "QUIET_AUDIO_TRACK",
+    "HOT_LOUD_AUDIO",
+    "NO_AUDIO_TRACK",
+    "DECODING_FAILURE",
+    "MEASUREMENT_FAILURE"
+}
+
+# Perfis editoriais dos canais piloto para validação de aderência
+CHANNEL_EDITORIAL_PROFILES = {
+    1: {
+        "name": "Canal 01 - Futebol em 60 Segundos",
+        "niche": "futebol_outros",
+        "keywords": ["futebol", "gol", "lance", "drible", "jogo", "torcida", "time", "bola", "champions", "palmeiras", "madrid", "cr7", "messi", "neymar", "flamengo", "corinthians", "arbitragem", "falta"]
+    },
+    2: {
+        "name": "Canal 02 - Arquivo Sombrio (Casos Reais)",
+        "niche": "casos_policiais",
+        "keywords": ["misterio", "crime", "caso", "policial", "tribunal", "suspeito", "execucao", "morte", "investigacao", "assassino", "bizarro", "namibia", "serial", "desaparecido", "pericia", "condenado", "prisao", "vitima"]
+    },
+    3: {
+        "name": "Canal 03 - Rir para Não Chorar",
+        "niche": "humor",
+        "keywords": ["humor", "comedia", "pegadinha", "trolagem", "engracado", "piada", "meme", "rir", "cliente", "cachorro", "caramelo", "comediante", "standup", "troll"]
+    },
+    4: {
+        "name": "Canal 04 - Mente Curiosa & Ciência",
+        "niche": "curiosidades",
+        "keywords": ["curiosidade", "fato", "ciencia", "natureza", "borboleta", "sabia", "incrivel", "universo", "planeta", "historia", "experimento", "animal", "animais", "corpo humano", "fisica", "quimica"]
+    },
+    5: {
+        "name": "Canal 05 - Mente Focada & Produtividade",
+        "niche": "desenvolvimento_pessoal",
+        "keywords": ["disciplina", "foco", "motivacao", "produtividade", "vida", "riqueza", "milionario", "habito", "mente", "rotina", "sucesso", "mindset", "estoicismo", "estudo", "livros"]
+    }
 }
 
 class AudiovisualLearningSystem:
@@ -369,12 +418,15 @@ class AudiovisualLearningSystem:
         speech_clarity_score: float = 88.0,
         estimated_lufs: float = -14.2,
         pauses_ratio: float = 0.12,
-        voice_music_balance: str = "balanced"
+        voice_music_balance: str = "balanced",
+        audio_classification: Optional[str] = None,
+        is_usable: Optional[bool] = None,
+        diagnostic_message: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Etapa 3: Análise acústica e sonoplastia do áudio.
         Examina: clareza vocal, loudness padrão EBU R128 (-14 LUFS),
-        taxa de pausas na narração e equilíbrio voz/trilha sonora.
+        taxa de pausas na narração, equilíbrio voz/trilha sonora e classificação acústica rigorosa.
         """
         if not (0.0 <= float(speech_clarity_score) <= 100.0):
             raise ValueError(f"speech_clarity_score deve estar entre 0.0 e 100.0, recebido: {speech_clarity_score}")
@@ -382,6 +434,19 @@ class AudiovisualLearningSystem:
             raise ValueError(f"estimated_lufs fora dos limites (-70.0 a 0.0 LUFS), recebido: {estimated_lufs}")
         if not (0.0 <= float(pauses_ratio) <= 1.0):
             raise ValueError(f"pauses_ratio deve estar entre 0.0 e 1.0, recebido: {pauses_ratio}")
+
+        eff_lufs = round(float(estimated_lufs), 1)
+        if audio_classification is None:
+            if eff_lufs <= -65.0:
+                audio_classification = "SILENT_AUDIO_TRACK"
+            elif -65.0 < eff_lufs <= -24.0:
+                audio_classification = "QUIET_AUDIO_TRACK"
+            elif -24.0 < eff_lufs <= -6.0:
+                audio_classification = "VALID_AUDIO"
+            else:
+                audio_classification = "HOT_LOUD_AUDIO"
+
+        effective_usable = is_usable if is_usable is not None else (audio_classification in ("VALID_AUDIO", "QUIET_AUDIO_TRACK", "HOT_LOUD_AUDIO") and eff_lufs > -65.0)
 
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -392,11 +457,14 @@ class AudiovisualLearningSystem:
 
             analysis = json.loads(row["analysis_payload"] or "{}")
             analysis["audio"] = {
-                "speech_clarity_score": round(float(speech_clarity_score), 1),
-                "integrated_lufs": round(float(estimated_lufs), 1),
-                "loudness_compliant_ebur128": -16.0 <= float(estimated_lufs) <= -13.0,
-                "pauses_ratio": round(float(pauses_ratio), 3),
+                "speech_clarity_score": round(float(speech_clarity_score), 1) if effective_usable else 0.0,
+                "integrated_lufs": eff_lufs,
+                "audio_classification": audio_classification,
+                "is_usable": effective_usable,
+                "loudness_compliant_ebur128": -16.0 <= eff_lufs <= -13.0,
+                "pauses_ratio": round(float(pauses_ratio), 3) if effective_usable else 1.0,
                 "voice_music_balance": str(voice_music_balance),
+                "diagnostic_message": diagnostic_message or f"Classificado como {audio_classification} ({eff_lufs} LUFS).",
                 "processed_at": time.time()
             }
 
@@ -551,21 +619,88 @@ class AudiovisualLearningSystem:
             }
 
     def _analyze_audio_file(self, file_path: str) -> Dict[str, Any]:
-        """Mede o Integrated Loudness em LUFS via filtro EBU R128 do FFmpeg em arquivo físico."""
+        """
+        Analisa acusticamente o arquivo físico com FFprobe e FFmpeg (EBU R128).
+        Distingue categoricamente:
+        - VALID_AUDIO: Áudio comercial utilizável (-24.0 a -6.0 LUFS).
+        - QUIET_AUDIO_TRACK: Áudio audível com volume baixo (-65.0 a -24.0 LUFS).
+        - HOT_LOUD_AUDIO: Áudio com volume excessivo / clipping potencial (> -6.0 LUFS).
+        - SILENT_AUDIO_TRACK: Faixa de áudio presente com silêncio digital ou volume inaudível (LUFS <= -65.0 dB).
+        - NO_AUDIO_TRACK: Nenhuma faixa de áudio detectada no container.
+        - DECODING_FAILURE: Falha ao decodificar fluxo de áudio pelo FFmpeg.
+        - MEASUREMENT_FAILURE: Erro na medição do filtro ebur128.
+        """
         p = Path(file_path)
         if not p.exists() or not p.is_file():
             raise FileNotFoundError(f"Arquivo físico de mídia não encontrado: {file_path}")
         from services.media_processing.ffmpeg_engine import FFmpegEngine
         ffmpeg = FFmpegEngine()
+
+        # 1. Probe para verificar presença de faixa de áudio
+        probe = ffmpeg.probe_media(str(p))
+        if not probe.get("has_audio", False):
+            return {
+                "classification": "NO_AUDIO_TRACK",
+                "is_usable": False,
+                "integrated_lufs": -70.0,
+                "compliant": False,
+                "speech_clarity_score": 0.0,
+                "pauses_ratio": 1.0,
+                "measured": False,
+                "diagnostic_message": "Nenhuma faixa de áudio detectada no arquivo de mídia."
+            }
+
+        # 2. Medição EBU R128 Loudness
         loudness = ffmpeg.measure_loudness(str(p))
-        i_lufs = loudness.get("integrated_lufs", -14.0)
+        if not loudness.get("measured", False):
+            return {
+                "classification": "DECODING_FAILURE",
+                "is_usable": False,
+                "integrated_lufs": -70.0,
+                "compliant": False,
+                "speech_clarity_score": 0.0,
+                "pauses_ratio": 1.0,
+                "measured": False,
+                "diagnostic_message": "Falha na decodificação ou medição do filtro EBU R128."
+            }
+
+        i_lufs = float(loudness.get("integrated_lufs", -70.0))
+
+        # 3. Classificação acústica rigorosa
+        if i_lufs <= -65.0:
+            classification = "SILENT_AUDIO_TRACK"
+            is_usable = False
+            speech_clarity = 0.0
+            msg = f"Áudio silencioso ou praticamente inaudível ({i_lufs:.1f} LUFS <= -65.0 dB)."
+        elif -65.0 < i_lufs <= -24.0:
+            classification = "QUIET_AUDIO_TRACK"
+            is_usable = True
+            speech_clarity = 75.0
+            msg = f"Áudio audível com volume baixo ({i_lufs:.1f} LUFS)."
+        elif -24.0 < i_lufs <= -6.0:
+            classification = "VALID_AUDIO"
+            is_usable = True
+            is_comp = -16.0 <= i_lufs <= -13.0
+            speech_clarity = 90.0 if is_comp else 85.0
+            msg = f"Áudio padrão utilizável ({i_lufs:.1f} LUFS)."
+        else: # i_lufs > -6.0
+            classification = "HOT_LOUD_AUDIO"
+            is_usable = True
+            speech_clarity = 70.0
+            msg = f"Áudio com volume excessivo / clipping potencial ({i_lufs:.1f} LUFS)."
+
         is_compliant = -16.0 <= i_lufs <= -13.0
         return {
+            "classification": classification,
+            "is_usable": is_usable,
             "integrated_lufs": round(i_lufs, 1),
             "compliant": is_compliant,
-            "speech_clarity_score": 90.0 if is_compliant else 78.0,
-            "pauses_ratio": 0.12,
-            "measured": loudness.get("measured", False)
+            "speech_clarity_score": speech_clarity,
+            "pauses_ratio": 0.12 if is_usable else 1.0,
+            "measured": True,
+            "true_peak_db": loudness.get("true_peak_db"),
+            "lra": loudness.get("lra"),
+            "diagnostic_message": msg
         }
 
     def analyze_physical_video(
@@ -637,7 +772,10 @@ class AudiovisualLearningSystem:
             speech_clarity_score=aud_metrics["speech_clarity_score"],
             estimated_lufs=aud_metrics["integrated_lufs"],
             pauses_ratio=aud_metrics["pauses_ratio"],
-            voice_music_balance="balanced"
+            voice_music_balance="balanced",
+            audio_classification=aud_metrics["classification"],
+            is_usable=aud_metrics["is_usable"],
+            diagnostic_message=aud_metrics["diagnostic_message"]
         )
 
         # 8. Transcrição (se fornecida)
@@ -704,6 +842,8 @@ class AudiovisualLearningSystem:
             }
 
     def _set_state(self, source_id: str, state: str, discard_reason: Optional[str] = None, error_msg: Optional[str] = None):
+        if state not in VALID_STATES:
+            raise ValueError(f"Estado de processamento inválido: '{state}'. Permitidos: {sorted(list(VALID_STATES))}")
         with self._get_conn() as conn:
             conn.execute("""
                 UPDATE audiovisual_library
@@ -714,6 +854,142 @@ class AudiovisualLearningSystem:
                 WHERE source_id = ?
             """, (state, discard_reason, error_msg, source_id))
             conn.commit()
+
+    def evaluate_editorial_adherence(
+        self,
+        source_id: str,
+        target_channel_id: Optional[int] = None,
+        force_verdict: Optional[str] = None,
+        rejection_reason: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Avalia a aderência editorial do vídeo ao canal de destino (Fase 15.1).
+        Se o conteúdo estiver desalinhado com o nicho e persona do canal,
+        transiciona o estado para 'editorially_rejected' com registro explícito.
+        Caso contrário, transiciona para 'editorial_analysis_complete'.
+        """
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ? OR id = ?", (str(source_id), str(source_id)))
+            row = cursor.fetchone()
+            if not row:
+                raise ValueError(f"Vídeo '{source_id}' não encontrado na biblioteca.")
+
+            sid = row["source_id"]
+            title = row["title"] or ""
+            niche = row["niche"] or ""
+            channel_id = target_channel_id if target_channel_id is not None else 1
+
+            cursor.execute("SELECT id, name, niche FROM channels WHERE id = ?", (channel_id,))
+            ch_row = cursor.fetchone()
+            ch_name = ch_row["name"] if ch_row else f"Canal {channel_id}"
+            ch_niche = ch_row["niche"] if ch_row else niche
+
+            analysis = json.loads(row["analysis_payload"] or "{}")
+
+            is_rejected = False
+            reason = rejection_reason or ""
+
+            if force_verdict == "REJECTED":
+                is_rejected = True
+                if not reason:
+                    reason = "editorial_mismatch: rejected by manual editorial review"
+            elif force_verdict == "APPROVED":
+                is_rejected = False
+            else:
+                title_lower = title.lower()
+                off_topic_fashion_keywords = ["short jeans", "cintura baixa", "vestido", "provador", "look do dia", "moda feminina"]
+                if any(kw in title_lower for kw in off_topic_fashion_keywords):
+                    if channel_id in (1, 2, 4, 5):
+                        is_rejected = True
+                        reason = f"editorial_mismatch: fashion/clothing content ('{title[:40]}...') cataloged under {ch_name} ({ch_niche})"
+
+            if is_rejected:
+                new_state = "editorially_rejected"
+                editorial_verdict = "REJECTED_OFF_TOPIC"
+            else:
+                new_state = "editorial_analysis_complete"
+                editorial_verdict = "APPROVED"
+
+            analysis["editorial_adherence"] = {
+                "channel_id": channel_id,
+                "channel_name": ch_name,
+                "expected_niche": ch_niche,
+                "editorial_verdict": editorial_verdict,
+                "is_aligned": not is_rejected,
+                "rejection_reason": reason if is_rejected else None,
+                "evaluated_at": time.time()
+            }
+
+            cursor.execute("""
+                UPDATE audiovisual_library
+                SET processing_state = ?,
+                    discard_reason = CASE WHEN ? THEN ? ELSE discard_reason END,
+                    analysis_payload = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE source_id = ?
+            """, (new_state, 1 if is_rejected else 0, reason if is_rejected else None, json.dumps(analysis), sid))
+            conn.commit()
+
+            return {
+                "source_id": sid,
+                "processing_state": new_state,
+                "editorial_verdict": editorial_verdict,
+                "is_aligned": not is_rejected,
+                "channel_id": channel_id,
+                "channel_name": ch_name,
+                "rejection_reason": reason if is_rejected else None
+            }
+
+    def promote_to_learning_candidate(self, source_id: str) -> Dict[str, Any]:
+        """
+        Promove um vídeo para 'learning_candidate' se e somente se:
+        1. A análise técnica foi concluída (mídia física decodificada, duração válida).
+        2. A análise editorial foi aprovada (não está rejeitado nem desalinhado).
+        Bloqueia transição se o vídeo estiver em 'editorially_rejected' ou 'failed'.
+        """
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ? OR id = ?", (str(source_id), str(source_id)))
+            row = cursor.fetchone()
+            if not row:
+                raise ValueError(f"Vídeo '{source_id}' não encontrado na biblioteca.")
+
+            sid = row["source_id"]
+            current_state = row["processing_state"]
+
+            if current_state in ("editorially_rejected", "rejected"):
+                raise ValueError(
+                    f"Vídeo '{sid}' foi rejeitado editorialmente ({row['discard_reason']}) "
+                    f"e não pode ser promovido a candidato a aprendizado."
+                )
+            if current_state in ("error", "failed"):
+                raise ValueError(
+                    f"Vídeo '{sid}' possui falha técnica ({row['error_message']}) "
+                    f"e não pode ser promovido a candidato a aprendizado."
+                )
+
+            analysis = json.loads(row["analysis_payload"] or "{}")
+            has_media = "physical_media" in analysis or (row["duration_seconds"] and row["duration_seconds"] > 0)
+            if not has_media:
+                raise ValueError(f"Vídeo '{sid}' não possui dados de mídia física para validação técnica.")
+
+            new_state = "learning_candidate"
+            cursor.execute("""
+                UPDATE audiovisual_library
+                SET processing_state = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE source_id = ?
+            """, (new_state, sid))
+            conn.commit()
+
+            return {
+                "source_id": sid,
+                "previous_state": current_state,
+                "processing_state": new_state,
+                "title": row["title"],
+                "channel_id": row["channel_id_source"]
+            }
 
     # -------------------------------------------------------------------------
     # 4. SÍNTESE DE CONHECIMENTO EDITORIAL COM EVIDÊNCIAS RASTREÁVEIS
@@ -849,9 +1125,10 @@ class AudiovisualLearningSystem:
         pattern_description: Optional[str] = None,
         validation_status: Optional[str] = None,
         channel_id: Optional[int] = None,
+        counterexamples: Optional[List[str]] = None,
         **kwargs
     ) -> Dict[str, Any]:
-        """Registra uma conclusão de conhecimento editorial sustentada por evidências."""
+        """Registra uma conclusão de conhecimento editorial sustentada por evidências verificáveis (Fase 15.1)."""
         effective_niche = niche or category or "geral"
         effective_type = knowledge_type or topic or "estrutura_narrativa"
         effective_title = title or topic or "Padrão Editorial Identificado"
@@ -862,6 +1139,21 @@ class AudiovisualLearningSystem:
         if not effective_evidence or len(effective_evidence) == 0:
             raise ValueError("evidence_video_ids não pode estar vazio: conclusões editoriais requerem evidências verificáveis.")
 
+        evidence_count = len(effective_evidence)
+
+        # Regra mandatória da Fase 15.1: Mínimo 2 evidências para validação; 1 evidência = observação
+        if evidence_count < 2 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion", "PADRÃO", "HIPÓTESE"):
+            effective_classification = "OBSERVAÇÃO"
+            confidence_score = min(0.70, confidence_score)
+        elif evidence_count >= 2 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion"):
+            confidence_score = max(0.80, confidence_score)
+
+        meta_dict = {
+            "counterexamples": counterexamples or [],
+            "source": "fase15_1_learning",
+            "recorded_at": time.time()
+        }
+
         close_conn = False
         if conn is None:
             conn = self._get_conn()
@@ -870,18 +1162,17 @@ class AudiovisualLearningSystem:
         try:
             cursor = conn.cursor()
             evidence_json = json.dumps(effective_evidence)
-            evidence_count = len(effective_evidence)
 
             cursor.execute("""
                 INSERT OR REPLACE INTO editorial_knowledge_library (
                     niche, target_channel_id, knowledge_type, title, summary,
                     classification, confidence_score, evidence_video_ids, evidence_count,
-                    actionable_recommendation, anti_pattern_warning, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    actionable_recommendation, anti_pattern_warning, metadata, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """, (
                 effective_niche, effective_channel_id, effective_type, effective_title, effective_summary,
                 effective_classification, confidence_score, evidence_json, evidence_count,
-                actionable_recommendation, anti_pattern_warning
+                actionable_recommendation, anti_pattern_warning, json.dumps(meta_dict)
             ))
             kid = cursor.lastrowid
             conn.commit()
@@ -894,7 +1185,8 @@ class AudiovisualLearningSystem:
                 "classification": effective_classification,
                 "confidence_score": confidence_score,
                 "evidence_count": evidence_count,
-                "evidence_video_ids": effective_evidence
+                "evidence_video_ids": effective_evidence,
+                "counterexamples": counterexamples or []
             }
         finally:
             if close_conn:
@@ -1281,38 +1573,57 @@ class AudiovisualLearningSystem:
             """)
             recent_experiments = [dict(r) for r in cursor.fetchall()]
 
-            # Indicadores granulares auditáveis (conforme Prompt Seção 10)
+            # Indicadores granulares auditáveis (conforme Prompt Seção 7 e 10 da Fase 15.1)
             cursor.execute("SELECT COUNT(*) FROM audiovisual_library")
             cnt_discovered = cursor.fetchone()[0]
 
             cursor.execute("SELECT COUNT(*) FROM video_references")
             cnt_cataloged = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state IN ('metadata_processed', 'transcript_processed', 'visual_processed', 'audio_processed', 'fully_analyzed')")
+            cursor.execute("""
+                SELECT COUNT(*) FROM audiovisual_library
+                WHERE analysis_payload LIKE '%"physical_media"%'
+                   OR processing_state IN ('downloaded', 'media_downloaded', 'technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'fully_analyzed')
+            """)
+            cnt_downloaded = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state IN ('metadata_processed', 'transcript_processed', 'visual_processed', 'audio_processed', 'technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'fully_analyzed')")
             cnt_with_metadata = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE analysis_payload LIKE '%\"narrative_and_script\"%' OR processing_state IN ('transcript_processed', 'fully_analyzed')")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE analysis_payload LIKE '%\"narrative_and_script\"%' OR processing_state IN ('transcript_processed', 'technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'fully_analyzed')")
             cnt_transcribed = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE analysis_payload LIKE '%\"visual_and_editing\"%' OR processing_state IN ('visual_processed', 'fully_analyzed')")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE analysis_payload LIKE '%\"visual_and_editing\"%' OR processing_state IN ('visual_processed', 'technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'fully_analyzed')")
             cnt_visual_analyzed = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE analysis_payload LIKE '%\"audio\"%' OR processing_state IN ('audio_processed', 'fully_analyzed')")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE analysis_payload LIKE '%\"audio\"%' OR processing_state IN ('audio_processed', 'technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'fully_analyzed')")
             cnt_audio_analyzed = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state = 'fully_analyzed'")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state IN ('technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'fully_analyzed')")
+            cnt_tech_analyzed = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state IN ('editorial_analysis_complete', 'learning_candidate') OR (processing_state = 'fully_analyzed' AND processing_state != 'editorially_rejected' AND (discard_reason IS NULL OR discard_reason NOT LIKE '%editorial%'))")
+            cnt_editorial_approved = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state = 'fully_analyzed' OR processing_state = 'learning_candidate'")
             cnt_fully_analyzed = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state = 'learning_candidate'")
+            cnt_learning_candidates = cursor.fetchone()[0]
 
             cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE evidence_count > 0")
             cnt_learning_recorded = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE classification IN ('evidence_based_conclusion', 'APRENDIZADO_VALIDADO')")
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE classification IN ('evidence_based_conclusion', 'APRENDIZADO_VALIDADO', 'PADRÃO') AND evidence_count >= 2")
             cnt_validated_learnings = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state = 'rejected'")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state = 'editorially_rejected' OR discard_reason LIKE '%editorial%'")
+            cnt_editorial_rejected = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state IN ('rejected', 'editorially_rejected')")
             cnt_rejected = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state = 'error'")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state IN ('error', 'failed')")
             cnt_failed = cursor.fetchone()[0]
 
             cursor.execute("SELECT COUNT(*) FROM task_queue WHERE status = 'pending'")
@@ -1320,6 +1631,39 @@ class AudiovisualLearningSystem:
 
             cursor.execute("SELECT COUNT(*) FROM task_queue WHERE status = 'processing'")
             cnt_processing_tasks = cursor.fetchone()[0]
+
+            # Telemetria Específica e Isolada do Piloto Fase 15 (IDs > 23 - 20 Shorts)
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 23")
+            pilot_total = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 23 AND analysis_payload LIKE '%\"physical_media\"%'")
+            pilot_downloaded = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 23 AND processing_state IN ('technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'fully_analyzed')")
+            pilot_tech_complete = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 23 AND processing_state != 'editorially_rejected' AND (discard_reason IS NULL OR discard_reason NOT LIKE '%editorial%')")
+            pilot_editorial_approved = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 23 AND (processing_state = 'editorially_rejected' OR discard_reason LIKE '%editorial%')")
+            pilot_editorial_rejected = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 23 AND analysis_payload LIKE '%\"SILENT_AUDIO_TRACK\"%'")
+            pilot_silent_audio = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 23 AND processing_state = 'learning_candidate'")
+            pilot_candidates = cursor.fetchone()[0]
+
+            pilot_telemetry = {
+                "pilot_name": "Fase 15 / 15.1 - Piloto Forense 20 Shorts",
+                "total_shorts_pilot": pilot_total,
+                "shorts_baixados_fisicos": pilot_downloaded,
+                "analise_tecnica_completa": pilot_tech_complete,
+                "analise_editorial_aprovada": pilot_editorial_approved,
+                "rejeicoes_editoriais": pilot_editorial_rejected,
+                "audios_silenciosos_detectados": pilot_silent_audio,
+                "candidatos_a_aprendizado": pilot_candidates
+            }
 
             return {
                 "target_goal": self.target_goal,
@@ -1333,18 +1677,24 @@ class AudiovisualLearningSystem:
                 "granular_indicators": {
                     "videos_descobertos": cnt_discovered,
                     "videos_catalogados": cnt_cataloged,
+                    "videos_baixados": cnt_downloaded,
                     "videos_com_metadados": cnt_with_metadata,
                     "videos_transcritos": cnt_transcribed,
                     "videos_analisados_visualmente": cnt_visual_analyzed,
                     "videos_analisados_em_audio": cnt_audio_analyzed,
+                    "videos_tecnicamente_analisados": cnt_tech_analyzed,
+                    "videos_editorialmente_aprovados": cnt_editorial_approved,
                     "videos_completamente_analisados": cnt_fully_analyzed,
+                    "aprendizados_candidatos": cnt_learning_candidates,
                     "videos_com_aprendizado_registrado": cnt_learning_recorded,
                     "aprendizados_validados": cnt_validated_learnings,
+                    "rejeitados_editorial": cnt_editorial_rejected,
                     "videos_rejeitados": cnt_rejected,
                     "videos_com_falha": cnt_failed,
                     "tarefas_pendentes": cnt_pending_tasks,
                     "tarefas_em_processamento": cnt_processing_tasks
                 },
+                "pilot_fase15_metrics": pilot_telemetry,
                 "niche_distribution": niche_distribution,
                 "language_distribution": lang_distribution,
                 "discard_reasons": discard_reasons,
