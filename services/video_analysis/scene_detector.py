@@ -37,8 +37,12 @@ class SceneDetectorService:
         from scenedetect import open_video, SceneManager
         from scenedetect.detectors import ContentDetector
 
-        video = open_video(video_path)
+        try:
+            video = open_video(video_path, backend="pyav")
+        except Exception:
+            video = open_video(video_path)
         scene_manager = SceneManager()
+        scene_manager.auto_downscale = True
         scene_manager.add_detector(ContentDetector(threshold=self.threshold))
 
         scene_manager.detect_scenes(video, frame_skip=2)
@@ -58,14 +62,18 @@ class SceneDetectorService:
 
         total_scenes = len(scenes)
         total_duration = scenes[-1]["end_sec"] if scenes else 0.0
-        # Ritmo visual: cortes por minuto
+        # Ritmo visual: cortes por minuto e intervalos reais entre cortes
         visual_bpm = round((total_scenes / (total_duration / 60.0)), 1) if total_duration > 0 else 0.0
+        cut_intervals = [s["duration_sec"] for s in scenes] if scenes else []
+        avg_cut_interval = round(sum(cut_intervals) / len(cut_intervals), 2) if cut_intervals else 0.0
 
         return {
             "engine": "PySceneDetect (ContentDetector)",
             "total_scenes": total_scenes,
             "visual_bpm": visual_bpm,
             "scenes": scenes,
+            "cut_intervals_sec": cut_intervals,
+            "avg_cut_interval_sec": avg_cut_interval,
             "recommended_cuts": [s["start_sec"] for s in scenes[1:]]
         }
 

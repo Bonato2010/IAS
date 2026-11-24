@@ -1481,11 +1481,12 @@ def get_channel_editorial_memory_route(channel_id: int):
 
 @app.get("/api/learning/pilot-forensic")
 def get_pilot_forensic_metrics():
-    """Retorna telemetria e evidências forenses auditadas do piloto de 20 Shorts (Fase 15.1)."""
+    """Retorna telemetria e evidências forenses auditadas dos pilotos (Fase 15.1 e Fase 16)."""
     overview = learning_system.get_dashboard_overview()
     return {
         "status": "AUDITED",
         "pilot_metrics": overview.get("pilot_fase15_metrics", {}),
+        "pilot_fase16_metrics": overview.get("pilot_fase16_metrics", {}),
         "granular_indicators": overview.get("granular_indicators", {})
     }
 

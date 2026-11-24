@@ -111,6 +111,7 @@ class FFmpegEngine:
                     "height": height,
                     "is_vertical": is_vertical,
                     "aspect_ratio": f"{width}:{height}" if width and height else None,
+                    "streams_count": len(streams),
                     "has_video": v_stream is not None,
                     "has_audio": a_stream is not None,
                     "video_codec": v_stream.get("codec_name") if v_stream else None,
@@ -121,14 +122,40 @@ class FFmpegEngine:
 
         return {"exists": os.path.exists(file_path), "duration_sec": 0.0}
 
-    def measure_loudness(self, media_path: str) -> Dict[str, float]:
-        """Mede o Integrated Loudness em LUFS via filtro EBU R128 do FFmpeg."""
+    def verify_decode_integrity(self, file_path: str, timeout_seconds: int = 60) -> Dict[str, Any]:
+        """Valida integridade física decodificando o arquivo via FFmpeg para saída nula."""
         if not self.available:
-            return {"integrated_lufs": -14.0, "true_peak_db": -1.5, "measured": False}
+            return {"decodable": False, "returncode": -1, "stderr": "FFmpeg binary unavailable"}
+        if not os.path.exists(file_path):
+            return {"decodable": False, "returncode": -1, "stderr": f"File not found: {file_path}"}
+
+        cmd = [
+            self.binary_path, "-v", "error",
+            "-i", str(file_path),
+            "-f", "null", "-"
+        ]
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
+            err_text = (res.stderr or "").strip()
+            return {
+                "decodable": res.returncode == 0,
+                "returncode": res.returncode,
+                "stderr": err_text[-300:] if err_text else ""
+            }
+        except subprocess.TimeoutExpired:
+            return {"decodable": False, "returncode": -2, "stderr": f"Decode timeout after {timeout_seconds}s"}
+        except Exception as e:
+            return {"decodable": False, "returncode": -3, "stderr": str(e)}
+
+    def measure_loudness(self, media_path: str) -> Dict[str, Any]:
+        """Mede o Integrated Loudness em LUFS via filtro EBU R128 do FFmpeg (com -vn para evitar timeout em 4K)."""
+        if not self.available:
+            return {"integrated_lufs": -70.0, "true_peak_db": -1.5, "measured": False, "measurement_failure": True, "clipping_detected": False}
 
         cmd = [
             self.binary_path, "-y",
             "-i", str(media_path),
+            "-vn",
             "-af", "ebur128=framelog=verbose",
             "-f", "null", "-"
         ]
@@ -140,18 +167,37 @@ class FFmpegEngine:
             match_tp = re.search(r"True peak:\s+Peak:\s+([-\d\.]+)\s+dBFS", output)
             match_lra = re.search(r"LRA:\s+([-\d\.]+)\s+LU", output)
 
-            i_lufs = float(match_i.group(1)) if match_i else -14.0
+            if not match_i:
+                return {
+                    "integrated_lufs": -70.0,
+                    "true_peak_db": -1.5,
+                    "measured": False,
+                    "measurement_failure": True,
+                    "clipping_detected": False,
+                    "error": output[-200:].strip()
+                }
+
+            i_lufs = float(match_i.group(1))
             tp_db = float(match_tp.group(1)) if match_tp else -1.5
-            lra = float(match_lra.group(1)) if match_lra else 7.0
+            lra = float(match_lra.group(1)) if match_lra else 0.0
 
             return {
                 "integrated_lufs": i_lufs,
                 "true_peak_db": tp_db,
                 "lra": lra,
-                "measured": True
+                "measured": True,
+                "measurement_failure": False,
+                "clipping_detected": tp_db >= -0.3 or i_lufs > -6.0
             }
-        except Exception:
-            return {"integrated_lufs": -14.0, "true_peak_db": -1.5, "measured": False}
+        except Exception as e:
+            return {
+                "integrated_lufs": -70.0,
+                "true_peak_db": -1.5,
+                "measured": False,
+                "measurement_failure": True,
+                "clipping_detected": False,
+                "error": str(e)
+            }
 
     def extract_audio(self, video_path: str, output_wav: str) -> bool:
         """Extrai áudio mono a 16kHz ideal para transcrição com Whisper."""

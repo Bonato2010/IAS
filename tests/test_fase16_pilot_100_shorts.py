@@ -263,6 +263,7 @@ class TestFase16Pilot100Shorts(unittest.TestCase):
     # 10. Conteúdo fora do nicho do canal classificado como editorially_rejected
     # -------------------------------------------------------------------------
     def test_10_off_topic_editorially_rejected(self):
+        # 10a. Homônimo de vestuário
         self.als.discover_video(
             source_id="offtopic_vid_99",
             title="SHORT JEANS Cintura Baixa - Coleção Moda",
@@ -276,6 +277,36 @@ class TestFase16Pilot100Shorts(unittest.TestCase):
         self.assertEqual(res_eval["processing_state"], "editorially_rejected")
         self.assertEqual(res_eval["editorial_verdict"], "REJECTED_OFF_TOPIC")
         self.assertIn("editorial_mismatch", res_eval["rejection_reason"])
+
+        # 10b. Simulador de jogo em canal de casos reais policiais (contextual)
+        self.als.discover_video(
+            source_id="offtopic_sim_01",
+            title="Testando essa belezinha Br Policia Simulator #Shorts",
+            creator="GamerTest",
+            niche="casos_policiais",
+            duration_seconds=40.0
+        )
+        res_sim = self.als.evaluate_editorial_adherence(
+            source_id="offtopic_sim_01",
+            target_channel_id=2  # Canal 2 é Arquivo Sombrio Casos Reais
+        )
+        self.assertEqual(res_sim["processing_state"], "editorially_rejected")
+        self.assertEqual(res_sim["editorial_verdict"], "REJECTED_OFF_TOPIC")
+
+        # 10c. Pack de efeitos sonoros em canal de humor (contextual)
+        self.als.discover_video(
+            source_id="offtopic_sfx_01",
+            title="5 EFEITOS SONOROS DE SURPRESA + LINK GRATUITO DOS SONS",
+            creator="EdicaoSound",
+            niche="humor",
+            duration_seconds=14.0
+        )
+        res_sfx = self.als.evaluate_editorial_adherence(
+            source_id="offtopic_sfx_01",
+            target_channel_id=3
+        )
+        self.assertEqual(res_sfx["processing_state"], "editorially_rejected")
+        self.assertEqual(res_sfx["editorial_verdict"], "REJECTED_OFF_TOPIC")
 
     # -------------------------------------------------------------------------
     # 11. Ciclo de vida completo: downloaded -> technical_analysis_complete -> editorial_analysis_complete -> learning_candidate
@@ -385,22 +416,57 @@ class TestFase16Pilot100Shorts(unittest.TestCase):
             self.assertEqual(ch2_rules[0]["title"], "Regra Editorial Canal 2 Casos Policiais")
 
     # -------------------------------------------------------------------------
-    # 15. Telemetria do Dashboard operacional atualizada com pilot_fase16_metrics
+    # 15. Telemetria do Dashboard operacional consistente com o banco de dados
     # -------------------------------------------------------------------------
     def test_15_dashboard_pilot_fase16_telemetry(self):
+        # Popula checkpoint e registros reais no banco isolado de teste (sem números fixos)
+        with self.als._get_conn() as conn:
+            conn.execute("""
+                INSERT INTO learning_batch_checkpoints (
+                    batch_id, target_goal, processed_count, success_count, rejected_count, error_count, status
+                ) VALUES ('pilot_100_fase16', 100, 2, 1, 1, 0, 'COMPLETED')
+            """)
+            conn.commit()
+
+        sample = self.temp_path / "dash_sample.mp4"
+        sample.write_bytes(b"\x00\x00\x00\x20ftypisom" + b"X" * 512)
+        self.als.discover_video(
+            source_id="dash_ok_1",
+            title="Golaço de falta incrível",
+            duration_seconds=20.0,
+            raw_metadata={"pilot_phase": 16, "target_channel_id": 1}
+        )
+        self.als.register_physical_media("dash_ok_1", str(sample), verified_duration=20.0, ffmpeg_decode_ok=True)
+        self.als.process_visual("dash_ok_1", cuts_count=5, aspect_ratio="1920:1080")
+        self.als.process_audio("dash_ok_1", speech_clarity_score=85.0, estimated_lufs=-14.0)
+        self.als.evaluate_editorial_adherence("dash_ok_1", target_channel_id=1)
+        self.als.promote_to_learning_candidate("dash_ok_1")
+
+        self.als.record_knowledge(
+            title="Aprendizado Piloto DB Test",
+            evidence_video_ids=["dash_ok_1", "dash_ok_2"],
+            classification="APRENDIZADO_VALIDADO",
+            target_channel_id=1,
+            pilot_phase=16
+        )
+
         dash = self.als.get_dashboard_overview()
         self.assertIn("pilot_fase16_metrics", dash, "Dashboard deve conter a chave 'pilot_fase16_metrics'.")
         m = dash["pilot_fase16_metrics"]
         self.assertEqual(m["candidates_selected"], 100)
-        self.assertIn("total_shorts_pilot", m)
-        self.assertIn("downloaded", m)
-        self.assertIn("technically_analyzed", m)
-        self.assertIn("editorially_approved", m)
+        self.assertEqual(m["total_shorts_pilot"], 1)
+        self.assertEqual(m["downloaded"], 1)
+        self.assertEqual(m["physically_validated"], 1)
+        self.assertEqual(m["technically_analyzed"], 1)
+        self.assertEqual(m["editorially_analyzed"], 1)
+        self.assertEqual(m["editorially_approved"], 1)
+        self.assertEqual(m["learning_candidates"], 1)
+        self.assertEqual(m["validated_learnings"], 1)
         self.assertIn("editorially_rejected", m)
         self.assertIn("silent_audio_detected", m)
-        self.assertIn("learning_candidates", m)
-        self.assertIn("validated_learnings", m)
         self.assertIn("failures", m)
+        self.assertIn("storage_used_mb", m)
+        self.assertIn("success_rate_per_channel", m)
         self.assertEqual(m["cost_usd"], 0.0)
 
     # -------------------------------------------------------------------------
@@ -412,6 +478,120 @@ class TestFase16Pilot100Shorts(unittest.TestCase):
         self.assertTrue(gateway.is_paid_model("gpt-4o"))
         self.assertTrue(gateway.is_paid_model("claude-3-5-sonnet-20241022"))
         self.assertFalse(gateway.is_paid_model("gemini/gemini-2.5-flash"))
+
+    # -------------------------------------------------------------------------
+    # 17. Arquivo físico ausente gera erro explícito
+    # -------------------------------------------------------------------------
+    def test_17_missing_physical_file_raises_error(self):
+        self.als.discover_video(source_id="missing_vid", title="Sem arquivo", duration_seconds=15.0)
+        with self.assertRaises(FileNotFoundError):
+            self.als.register_physical_media("missing_vid", str(self.temp_path / "nao_existe.mp4"))
+
+    # -------------------------------------------------------------------------
+    # 18. Arquivo corrompido (0 bytes ou inválido no FFmpeg) é rejeitado
+    # -------------------------------------------------------------------------
+    def test_18_corrupted_file_rejected(self):
+        empty_f = self.temp_path / "empty.mp4"
+        empty_f.write_bytes(b"")
+        self.als.discover_video(source_id="corrupt_empty", title="Vazio", duration_seconds=15.0)
+        with self.assertRaises(ValueError):
+            self.als.register_physical_media("corrupt_empty", str(empty_f))
+
+        bad_f = self.temp_path / "garbage.mp4"
+        bad_f.write_bytes(b"NOT_A_REAL_VIDEO_CONTAINER" * 20)
+        self.als.discover_video(source_id="corrupt_bad", title="Lixo binário", duration_seconds=15.0)
+        with self.assertRaises(ValueError):
+            self.als.register_physical_media("corrupt_bad", str(bad_f), verify_decode=True)
+
+    # -------------------------------------------------------------------------
+    # 19. Hash SHA256 incorreto gera erro explícito de integridade
+    # -------------------------------------------------------------------------
+    def test_19_incorrect_sha256_hash_raises_error(self):
+        real_f = self.temp_path / "hash_check.mp4"
+        real_f.write_bytes(b"conteudo_valido_video_teste" * 10)
+        self.als.discover_video(source_id="bad_hash_vid", title="Teste Hash", duration_seconds=12.0)
+        wrong_hash = "0" * 64
+        with self.assertRaises(ValueError) as ctx:
+            self.als.register_physical_media("bad_hash_vid", str(real_f), sha256_hash=wrong_hash, verified_duration=12.0)
+        self.assertIn("SHA256", str(ctx.exception))
+
+    # -------------------------------------------------------------------------
+    # 20. Vídeo sem faixa de áudio classificado como NO_AUDIO_TRACK
+    # -------------------------------------------------------------------------
+    def test_20_no_audio_track_classified_correctly(self):
+        dummy_v = self.temp_path / "video_only.mp4"
+        dummy_v.write_bytes(b"fake_video")
+        with patch("services.media_processing.ffmpeg_engine.FFmpegEngine.probe_media", return_value={
+            "exists": True, "has_video": True, "has_audio": False, "duration_sec": 15.0
+        }):
+            res = self.als._analyze_audio_file(str(dummy_v))
+        self.assertEqual(res["classification"], "NO_AUDIO_TRACK")
+        self.assertFalse(res["is_usable"])
+
+    # -------------------------------------------------------------------------
+    # 21. Falha de decodificação FFmpeg classificada como DECODING_FAILURE
+    # -------------------------------------------------------------------------
+    def test_21_decoding_failure_classified_correctly(self):
+        corrupt_v = self.temp_path / "decode_fail.mp4"
+        corrupt_v.write_bytes(b"corrupt_stream")
+        with patch("services.media_processing.ffmpeg_engine.FFmpegEngine.probe_media", return_value={
+            "exists": True, "has_video": True, "has_audio": True, "duration_sec": 15.0
+        }), patch("services.media_processing.ffmpeg_engine.FFmpegEngine.measure_loudness", return_value={
+            "measured": False, "measurement_failure": True, "integrated_lufs": -70.0
+        }), patch("services.media_processing.ffmpeg_engine.FFmpegEngine.verify_decode_integrity", return_value={
+            "decodable": False, "stderr": "Invalid data found when processing input"
+        }):
+            res = self.als._analyze_audio_file(str(corrupt_v))
+        self.assertEqual(res["classification"], "DECODING_FAILURE")
+        self.assertFalse(res["is_usable"])
+
+    # -------------------------------------------------------------------------
+    # 22. Checkpoint persistente e retomada idempotente
+    # -------------------------------------------------------------------------
+    def test_22_checkpoint_and_resumption(self):
+        from scripts.execute_pilot_100_shorts import init_checkpoint, update_checkpoint
+        with self.als._get_conn() as conn:
+            init_checkpoint(conn, target_count=100)
+            update_checkpoint(conn, processed=42, success=40, rejected=2, errors=0, last_id="vid_42", status="RUNNING")
+            row = conn.execute("SELECT * FROM learning_batch_checkpoints WHERE batch_id = 'pilot_100_fase16'").fetchone()
+            self.assertEqual(row["processed_count"], 42)
+            self.assertEqual(row["success_count"], 40)
+            self.assertEqual(row["rejected_count"], 2)
+            self.assertEqual(row["last_processed_source_id"], "vid_42")
+            self.assertEqual(row["status"], "RUNNING")
+
+            # Retomada preserva progresso sem zerar
+            init_checkpoint(conn, target_count=100)
+            row2 = conn.execute("SELECT * FROM learning_batch_checkpoints WHERE batch_id = 'pilot_100_fase16'").fetchone()
+            self.assertEqual(row2["processed_count"], 42)
+
+    # -------------------------------------------------------------------------
+    # 23. Circuit breakers interrompem em todos os limiares configurados
+    # -------------------------------------------------------------------------
+    def test_23_circuit_breakers_trigger_on_all_thresholds(self):
+        from scripts.execute_pilot_100_shorts import check_circuit_breakers, CircuitBreakerException
+        gw = ModelGatewayService(enforce_free_tier=True)
+
+        # 1. 3 falhas consecutivas de download
+        with self.assertRaises(CircuitBreakerException):
+            check_circuit_breakers(consecutive_errors=3, total_processed=5, corrupted_count=0, silent_audio_count=0, model_gateway=gw)
+
+        # 2. Taxa corrompidos > 5%
+        with self.assertRaises(CircuitBreakerException):
+            check_circuit_breakers(consecutive_errors=0, total_processed=20, corrupted_count=2, silent_audio_count=0, model_gateway=gw)
+
+        # 3. Taxa áudio silencioso > 20%
+        with self.assertRaises(CircuitBreakerException):
+            check_circuit_breakers(consecutive_errors=0, total_processed=20, corrupted_count=0, silent_audio_count=5, model_gateway=gw)
+
+        # 4. Custo diferente de zero
+        gw_paid = MagicMock()
+        gw_paid.get_usage_metrics.return_value = {"total_cost_usd": 0.25}
+        with self.assertRaises(CircuitBreakerException):
+            check_circuit_breakers(consecutive_errors=0, total_processed=20, corrupted_count=0, silent_audio_count=0, model_gateway=gw_paid)
+
+        # 5. Caso nominal saudável não dispara
+        check_circuit_breakers(consecutive_errors=0, total_processed=20, corrupted_count=0, silent_audio_count=1, model_gateway=gw)
 
     def _get_state(self, source_id):
         with self.als._get_conn() as conn:

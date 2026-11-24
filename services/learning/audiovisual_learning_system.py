@@ -351,16 +351,47 @@ class AudiovisualLearningSystem:
         self,
         source_id: str,
         transcript_text: str,
-        word_timestamps: Optional[List[Dict[str, Any]]] = None
+        word_timestamps: Optional[List[Dict[str, Any]]] = None,
+        allow_insufficient_speech: bool = False,
+        transcription_engine: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Etapa 2: Análise textual e narrativa da fala.
-        Examina: gancho 0-3s, ritmo da fala (WPM), perguntas retóricas,
-        curiosidade, clareza, densidade informacional e call-to-action final.
+        Examina: tipo de gancho, estrutura narrativa, desenvolvimento, transições,
+        conclusão, CTA, ritmo da fala (WPM) e correlação multimodal.
+        Nunca declara análise narrativa completa sem transcrição válida.
         """
-        if not transcript_text or len(transcript_text.strip()) < 10:
-            self._set_state(source_id, "rejected", discard_reason="empty_or_too_short_transcript")
-            return {"source_id": source_id, "state": "rejected", "reason": "empty_or_too_short_transcript"}
+        clean_text = (transcript_text or "").strip()
+        if not clean_text or len(clean_text) < 10:
+            if not allow_insufficient_speech:
+                self._set_state(source_id, "rejected", discard_reason="empty_or_too_short_transcript")
+                return {"source_id": source_id, "state": "rejected", "reason": "empty_or_too_short_transcript"}
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM audiovisual_library WHERE source_id = ? OR id = ?", (str(source_id), str(source_id)))
+                row = cursor.fetchone()
+                if not row:
+                    raise ValueError(f"Vídeo '{source_id}' não encontrado.")
+                analysis = json.loads(row["analysis_payload"] or "{}")
+                analysis["narrative_and_script"] = {
+                    "narrative_analysis_status": "insufficient_speech_evidence",
+                    "speech_detected": False,
+                    "word_count": len(clean_text.split()) if clean_text else 0,
+                    "transcription_engine": transcription_engine or "faster_whisper",
+                    "processed_at": time.time()
+                }
+                cursor.execute("""
+                    UPDATE audiovisual_library
+                    SET analysis_payload = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE source_id = ?
+                """, (json.dumps(analysis), source_id))
+                conn.commit()
+                return {
+                    "source_id": source_id,
+                    "state": row["processing_state"],
+                    "metrics": analysis["narrative_and_script"]
+                }
 
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -369,7 +400,7 @@ class AudiovisualLearningSystem:
             if not row:
                 raise ValueError(f"Vídeo '{source_id}' não encontrado.")
 
-            words = transcript_text.strip().split()
+            words = clean_text.split()
             word_count = len(words)
             duration = float(row["duration_seconds"] or 30.0)
             duration_min = max(0.1, duration / 60.0)
@@ -378,26 +409,74 @@ class AudiovisualLearningSystem:
             # Extração dos primeiros 3 segundos de fala (Gancho inicial)
             hook_words = words[:12] if len(words) >= 12 else words
             hook_text = " ".join(hook_words)
+            hook_lower = hook_text.lower()
 
-            # Heurísticas de gatilhos psicológicos do gancho
-            hook_triggers = ["por que", "você sabia", "olha", "nunca", "segredo", "o motivo", "cuidado", "se você", "descubra"]
-            has_trigger = any(t in hook_text.lower() for t in hook_triggers)
+            # Heurísticas de gatilhos psicológicos e classificação do gancho
+            hook_triggers = ["por que", "você sabia", "olha", "nunca", "segredo", "o motivo", "cuidado", "se você", "descubra", "veja", "ninguém", "how", "why", "secret"]
+            has_trigger = any(t in hook_lower for t in hook_triggers)
             has_question = "?" in hook_text
 
-            # Análise de CTA no final
-            last_words = " ".join(words[-15:]).lower() if len(words) >= 15 else " ".join(words).lower()
-            has_cta = any(c in last_words for c in ["inscreva", "siga", "curte", "compartilhe", "comente", "link na bio"])
+            if has_question:
+                hook_type = "interrogative_hook"
+            elif has_trigger:
+                hook_type = "curiosity_or_tension_hook"
+            elif any(imp in hook_lower for imp in ["pare", "faça", "escute", "preste atenção", "stop", "listen"]):
+                hook_type = "imperative_hook"
+            else:
+                hook_type = "direct_statement_hook"
+
+            # Transições narrativas detectáveis
+            transition_markers = ["mas", "porém", "então", "de repente", "por isso", "agora", "enquanto", "no entanto", "aí", "but", "then", "so"]
+            text_lower = clean_text.lower()
+            transitions_detected = [m for m in transition_markers if re.search(rf"\b{re.escape(m)}\b", text_lower)]
+
+            # Desenvolvimento (segmento intermediário)
+            if word_count >= 25:
+                mid_words = words[len(hook_words):max(len(hook_words) + 1, word_count - 10)]
+                development_summary = " ".join(mid_words[:25]) + ("..." if len(mid_words) > 25 else "")
+            else:
+                development_summary = clean_text
+
+            # Análise de CTA e conclusão no final
+            last_words = " ".join(words[-15:]).lower() if len(words) >= 15 else text_lower
+            has_cta = any(c in last_words for c in ["inscreva", "siga", "curte", "compartilhe", "comente", "link na bio", "subscribe", "follow", "like"])
+            conclusion_type = "cta_driven" if has_cta else ("open_question" if clean_text.endswith("?") else "narrative_resolution")
+            narrative_structure = (
+                "hook_development_cta" if (word_count >= 20 and has_cta)
+                else ("hook_development_resolution" if word_count >= 20 else "short_direct_statement")
+            )
 
             analysis = json.loads(row["analysis_payload"] or "{}")
+            visual_meta = analysis.get("visual_and_editing", {})
+            audio_meta = analysis.get("audio", {})
+            pacing_class = "fast_paced" if wpm > 175 else ("moderate" if wpm >= 120 else "slow")
+
+            multimodal_correlation = {
+                "speech_pace_vs_visual_tempo": f"{pacing_class}_speech + {visual_meta.get('editing_tempo', 'unmeasured')}_cuts",
+                "audio_loudness_class": audio_meta.get("audio_classification", "unmeasured"),
+                "cuts_count_observed": visual_meta.get("cuts_count"),
+                "integrated_lufs_observed": audio_meta.get("integrated_lufs")
+            }
+
             analysis["narrative_and_script"] = {
+                "narrative_analysis_status": "complete",
+                "speech_detected": True,
+                "transcription_engine": transcription_engine or "provided_or_subtitles",
+                "full_transcript": clean_text,
                 "word_count": word_count,
                 "speaking_pace_wpm": wpm,
-                "pacing_classification": "fast_paced" if wpm > 175 else ("moderate" if wpm >= 140 else "slow"),
+                "pacing_classification": pacing_class,
                 "hook_3s_text": hook_text,
+                "hook_type": hook_type,
                 "hook_has_psychological_trigger": has_trigger,
                 "hook_has_question": has_question,
+                "narrative_structure": narrative_structure,
+                "development_summary": development_summary,
+                "transitions_detected": transitions_detected,
+                "conclusion_type": conclusion_type,
                 "has_call_to_action": has_cta,
-                "estimated_sentence_count": transcript_text.count(".") + transcript_text.count("!") + transcript_text.count("?") or 1,
+                "multimodal_correlation": multimodal_correlation,
+                "estimated_sentence_count": clean_text.count(".") + clean_text.count("!") + clean_text.count("?") or 1,
                 "processed_at": time.time()
             }
 
@@ -421,11 +500,14 @@ class AudiovisualLearningSystem:
         voice_music_balance: str = "balanced",
         audio_classification: Optional[str] = None,
         is_usable: Optional[bool] = None,
-        diagnostic_message: Optional[str] = None
+        diagnostic_message: Optional[str] = None,
+        clipping_detected: Optional[bool] = None,
+        true_peak_db: Optional[float] = None,
+        lra: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Etapa 3: Análise acústica e sonoplastia do áudio.
-        Examina: clareza vocal, loudness padrão EBU R128 (-14 LUFS),
+        Examina: clareza vocal, loudness padrão EBU R128 (-14 LUFS), possível clipping,
         taxa de pausas na narração, equilíbrio voz/trilha sonora e classificação acústica rigorosa.
         """
         if not (0.0 <= float(speech_clarity_score) <= 100.0):
@@ -447,6 +529,9 @@ class AudiovisualLearningSystem:
                 audio_classification = "HOT_LOUD_AUDIO"
 
         effective_usable = is_usable if is_usable is not None else (audio_classification in ("VALID_AUDIO", "QUIET_AUDIO_TRACK", "HOT_LOUD_AUDIO") and eff_lufs > -65.0)
+        eff_clipping = clipping_detected if clipping_detected is not None else (
+            audio_classification == "HOT_LOUD_AUDIO" or (true_peak_db is not None and float(true_peak_db) >= -0.3)
+        )
 
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -459,8 +544,12 @@ class AudiovisualLearningSystem:
             analysis["audio"] = {
                 "speech_clarity_score": round(float(speech_clarity_score), 1) if effective_usable else 0.0,
                 "integrated_lufs": eff_lufs,
+                "true_peak_db": true_peak_db,
+                "lra": lra,
+                "clipping_detected": eff_clipping,
                 "audio_classification": audio_classification,
                 "is_usable": effective_usable,
+                "can_generate_acoustic_learning": effective_usable,
                 "loudness_compliant_ebur128": -16.0 <= eff_lufs <= -13.0,
                 "pauses_ratio": round(float(pauses_ratio), 3) if effective_usable else 1.0,
                 "voice_music_balance": str(voice_music_balance),
@@ -484,15 +573,21 @@ class AudiovisualLearningSystem:
         source_id: str,
         cuts_count: int,
         aspect_ratio: str = "9:16",
-        has_subtitles_on_screen: bool = True,
-        framing_changes: int = 4,
-        broll_presence_ratio: float = 0.35,
-        dominant_composition: Optional[str] = "standard"
+        has_subtitles_on_screen: Optional[bool] = None,
+        framing_changes: int = 0,
+        broll_presence_ratio: float = 0.0,
+        dominant_composition: Optional[str] = "standard",
+        cut_intervals_sec: Optional[List[float]] = None,
+        avg_cut_interval_sec: Optional[float] = None,
+        representative_frames: Optional[List[Dict[str, Any]]] = None,
+        average_motion_score: Optional[float] = None,
+        text_detection_evidence: Optional[Dict[str, Any]] = None,
+        opencv_frames_read_ok: Optional[bool] = None
     ) -> Dict[str, Any]:
         """
-        Etapa 4: Análise visual e ritmo de edição.
-        Examina: frequência de cortes, enquadramentos, proporção 9:16 vertical,
-        presença de legendas na tela e inserção de imagens de apoio (B-roll).
+        Etapa 4: Análise visual e ritmo de edição baseada em evidências físicas reais.
+        Examina: frames representativos, quantidade de cenas, intervalos entre cortes,
+        mudanças visuais, presença de texto detectável na tela e composição visual.
         """
         if not isinstance(cuts_count, int) or cuts_count < 0:
             raise ValueError(f"cuts_count deve ser um inteiro não-negativo, recebido: {cuts_count}")
@@ -516,17 +611,37 @@ class AudiovisualLearningSystem:
             duration_min = max(0.1, duration / 60.0)
             cuts_per_minute = round(cuts_count / duration_min, 1)
 
+            is_vertical = aspect_ratio in ["9:16", "vertical"]
+            if not is_vertical and isinstance(aspect_ratio, str) and ":" in aspect_ratio:
+                try:
+                    w_str, h_str = aspect_ratio.split(":", 1)
+                    is_vertical = int(h_str) > int(w_str) and int(w_str) > 0
+                except Exception:
+                    is_vertical = False
+
             analysis = json.loads(row["analysis_payload"] or "{}")
             analysis["visual_and_editing"] = {
                 "cuts_count": cuts_count,
+                "total_scenes": cuts_count + 1,
                 "cuts_per_minute": cuts_per_minute,
+                "cut_intervals_sec": cut_intervals_sec or [],
+                "avg_cut_interval_sec": avg_cut_interval_sec,
                 "editing_tempo": "high_dynamic" if cuts_per_minute > 20 else ("moderate" if cuts_per_minute >= 10 else "relaxed"),
                 "aspect_ratio": aspect_ratio,
-                "is_vertical_9_16": aspect_ratio in ["9:16", "vertical"],
+                "is_vertical_9_16": is_vertical,
                 "has_subtitles_on_screen": has_subtitles_on_screen,
+                "text_detection_evidence": text_detection_evidence or {},
                 "framing_changes": framing_changes,
+                "visual_changes_score": average_motion_score,
+                "representative_frames": representative_frames or [],
+                "opencv_frames_read_ok": opencv_frames_read_ok,
                 "broll_presence_ratio": round(float(broll_presence_ratio), 3),
                 "dominant_composition": comp_str,
+                "visual_evidence": {
+                    "scene_detector": "PySceneDetect (ContentDetector)",
+                    "frame_analyzer": "OpenCV",
+                    "measured_duration_sec": duration
+                },
                 "processed_at": time.time()
             }
 
@@ -548,12 +663,21 @@ class AudiovisualLearningSystem:
         file_size_bytes: Optional[int] = None,
         sha256_hash: Optional[str] = None,
         verified_duration: Optional[float] = None,
-        download_status: str = "DOWNLOADED"
+        download_status: str = "DOWNLOADED",
+        verify_decode: bool = False,
+        video_codec: Optional[str] = None,
+        audio_codec: Optional[str] = None,
+        streams_count: Optional[int] = None,
+        ffmpeg_decode_ok: Optional[bool] = None,
+        ffmpeg_decode_error: Optional[str] = None,
+        opencv_frames_read_ok: Optional[bool] = None,
+        opencv_sampled_frames: Optional[int] = None,
+        resolution: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Registra a existência física de arquivo local de mídia para o Short.
-        REGRA MANDATÓRIA: O arquivo DEVE existir fisicamente no disco.
-        Não inventa video_path nem simula existência de arquivo.
+        REGRA MANDATÓRIA: O arquivo DEVE existir fisicamente no disco, SHA256 deve conferir,
+        e metadados reais de codecs/streams/decodificação são gravados quando disponíveis.
         """
         p = Path(local_path)
         if not p.exists() or not p.is_file():
@@ -563,23 +687,42 @@ class AudiovisualLearningSystem:
         if actual_size <= 0:
             raise ValueError(f"Arquivo de mídia '{local_path}' está vazio (0 bytes).")
 
-        effective_sha256 = sha256_hash
-        if not effective_sha256:
-            hasher = hashlib.sha256()
-            with open(p, "rb") as f:
-                for chunk in iter(lambda: f.read(65536), b""):
-                    hasher.update(chunk)
-            effective_sha256 = hasher.hexdigest()
+        hasher = hashlib.sha256()
+        with open(p, "rb") as f:
+            for chunk in iter(lambda: f.read(65536), b""):
+                hasher.update(chunk)
+        computed_sha256 = hasher.hexdigest()
 
-        effective_duration = verified_duration
-        if effective_duration is None:
-            try:
-                from services.media_processing.ffmpeg_engine import FFmpegEngine
-                ffmpeg = FFmpegEngine()
-                probe = ffmpeg.probe_media(str(p))
-                effective_duration = probe.get("duration_sec", 0.0)
-            except Exception:
-                effective_duration = 0.0
+        if sha256_hash:
+            if len(sha256_hash) != 64 or sha256_hash.lower() != computed_sha256:
+                raise ValueError(
+                    f"Divergência de integridade SHA256 para '{p.name}': esperado={sha256_hash}, calculado={computed_sha256}"
+                )
+        effective_sha256 = computed_sha256
+
+        probe = {}
+        try:
+            from services.media_processing.ffmpeg_engine import FFmpegEngine
+            ffmpeg = FFmpegEngine()
+            probe = ffmpeg.probe_media(str(p))
+            if verify_decode:
+                dec = ffmpeg.verify_decode_integrity(str(p))
+                ffmpeg_decode_ok = dec.get("decodable", False)
+                ffmpeg_decode_error = dec.get("stderr")
+                if not ffmpeg_decode_ok:
+                    raise ValueError(f"Arquivo corrompido — falha na decodificação FFmpeg: {ffmpeg_decode_error}")
+        except ValueError:
+            raise
+        except Exception:
+            probe = {}
+
+        effective_duration = verified_duration if verified_duration is not None else probe.get("duration_sec", 0.0)
+        eff_v_codec = video_codec or probe.get("video_codec")
+        eff_a_codec = audio_codec or probe.get("audio_codec")
+        eff_streams = streams_count if streams_count is not None else probe.get("streams_count")
+        eff_resolution = resolution or (
+            f"{probe.get('width')}x{probe.get('height')}" if probe.get("width") and probe.get("height") else None
+        )
 
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -594,6 +737,14 @@ class AudiovisualLearningSystem:
                 "file_size_bytes": actual_size,
                 "sha256_hash": effective_sha256,
                 "verified_duration": round(float(effective_duration), 2),
+                "video_codec": eff_v_codec,
+                "audio_codec": eff_a_codec,
+                "streams_count": eff_streams,
+                "resolution": eff_resolution,
+                "ffmpeg_decode_ok": ffmpeg_decode_ok,
+                "ffmpeg_decode_error": ffmpeg_decode_error,
+                "opencv_frames_read_ok": opencv_frames_read_ok,
+                "opencv_sampled_frames": opencv_sampled_frames,
                 "download_status": download_status,
                 "downloaded_at": time.time()
             }
@@ -638,33 +789,53 @@ class AudiovisualLearningSystem:
 
         # 1. Probe para verificar presença de faixa de áudio
         probe = ffmpeg.probe_media(str(p))
+        if probe.get("error") or (probe.get("exists") is False) or (probe.get("has_video") is False and probe.get("has_audio") is False):
+            return {
+                "classification": "DECODING_FAILURE",
+                "is_usable": False,
+                "integrated_lufs": -70.0,
+                "compliant": False,
+                "clipping_detected": False,
+                "speech_clarity_score": 0.0,
+                "pauses_ratio": 1.0,
+                "measured": False,
+                "diagnostic_message": "Falha ao ler streams de mídia via FFprobe."
+            }
+
         if not probe.get("has_audio", False):
             return {
                 "classification": "NO_AUDIO_TRACK",
                 "is_usable": False,
                 "integrated_lufs": -70.0,
                 "compliant": False,
+                "clipping_detected": False,
                 "speech_clarity_score": 0.0,
                 "pauses_ratio": 1.0,
                 "measured": False,
                 "diagnostic_message": "Nenhuma faixa de áudio detectada no arquivo de mídia."
             }
 
-        # 2. Medição EBU R128 Loudness
+        # 2. Medição EBU R128 Loudness (com -vn)
         loudness = ffmpeg.measure_loudness(str(p))
         if not loudness.get("measured", False):
+            # Verifica se o container falha na decodificação ou se apenas o filtro falhou
+            dec = ffmpeg.verify_decode_integrity(str(p))
+            cls = "MEASUREMENT_FAILURE" if dec.get("decodable", False) else "DECODING_FAILURE"
             return {
-                "classification": "DECODING_FAILURE",
+                "classification": cls,
                 "is_usable": False,
                 "integrated_lufs": -70.0,
                 "compliant": False,
+                "clipping_detected": False,
                 "speech_clarity_score": 0.0,
                 "pauses_ratio": 1.0,
                 "measured": False,
-                "diagnostic_message": "Falha na decodificação ou medição do filtro EBU R128."
+                "diagnostic_message": f"{cls}: {loudness.get('error', dec.get('stderr', 'Erro na medição EBU R128.'))}"
             }
 
         i_lufs = float(loudness.get("integrated_lufs", -70.0))
+        tp_db = loudness.get("true_peak_db")
+        clipping = bool(loudness.get("clipping_detected", False))
 
         # 3. Classificação acústica rigorosa
         if i_lufs <= -65.0:
@@ -687,6 +858,7 @@ class AudiovisualLearningSystem:
             classification = "HOT_LOUD_AUDIO"
             is_usable = True
             speech_clarity = 70.0
+            clipping = True
             msg = f"Áudio com volume excessivo / clipping potencial ({i_lufs:.1f} LUFS)."
 
         is_compliant = -16.0 <= i_lufs <= -13.0
@@ -695,10 +867,11 @@ class AudiovisualLearningSystem:
             "is_usable": is_usable,
             "integrated_lufs": round(i_lufs, 1),
             "compliant": is_compliant,
+            "clipping_detected": clipping,
             "speech_clarity_score": speech_clarity,
             "pauses_ratio": 0.12 if is_usable else 1.0,
             "measured": True,
-            "true_peak_db": loudness.get("true_peak_db"),
+            "true_peak_db": tp_db,
             "lra": loudness.get("lra"),
             "diagnostic_message": msg
         }
@@ -886,9 +1059,14 @@ class AudiovisualLearningSystem:
             ch_niche = ch_row["niche"] if ch_row else niche
 
             analysis = json.loads(row["analysis_payload"] or "{}")
+            narrative_meta = analysis.get("narrative_and_script", {})
+            raw_meta = json.loads(row["raw_metadata"] or "{}")
+            transcript_text = narrative_meta.get("full_transcript", "")
+            combined_context = f"{title} {transcript_text} {raw_meta.get('description', '')}".lower()
 
             is_rejected = False
             reason = rejection_reason or ""
+            rejection_tags = []
 
             if force_verdict == "REJECTED":
                 is_rejected = True
@@ -897,27 +1075,53 @@ class AudiovisualLearningSystem:
             elif force_verdict == "APPROVED":
                 is_rejected = False
             else:
-                title_lower = title.lower()
-                off_topic_fashion_keywords = ["short jeans", "cintura baixa", "vestido", "provador", "look do dia", "moda feminina"]
-                if any(kw in title_lower for kw in off_topic_fashion_keywords):
-                    if channel_id in (1, 2, 4, 5):
+                # 1. Bloqueio contextual global de homônimos de vestuário / spam / apostas
+                global_off_topic = [
+                    "short jeans", "cintura baixa", "vestido feminino", "vestido longo",
+                    "provador", "look do dia", "moda feminina", "tigrinho", "cassino", "jogo do tigre"
+                ]
+                for kw in global_off_topic:
+                    if kw in combined_context and channel_id in (1, 2, 3, 4, 5):
                         is_rejected = True
-                        reason = f"editorial_mismatch: fashion/clothing content ('{title[:40]}...') cataloged under {ch_name} ({ch_niche})"
+                        reason = f"editorial_mismatch: off-topic homonym/spam content ('{kw}') in {ch_name} ({ch_niche})"
+                        rejection_tags.append("global_off_topic")
+                        break
 
+                # 2. Incompatibilidade contextual por identidade editorial do canal
                 if not is_rejected:
-                    # Item 9 Guard: detecção automática de áudio silencioso
+                    channel_incompat = {
+                        1: [("simulator", "gameplay"), ("fifa", "gameplay"), ("efootball", "gameplay"), ("xbox", "gameplay"), ("playstation", "gameplay")],
+                        2: [("simulator", "jogo_simulador"), ("policia simulator", "jogo_simulador"), ("roleplay", "jogo_simulador"), ("free fire", "gameplay"), ("gta", "gameplay"), ("costura", "homonimo_maquina")],
+                        3: [("efeitos sonoros", "pack_recursos_edicao"), ("link gratuito dos sons", "pack_recursos_edicao"), ("download gratis", "pack_recursos_edicao"), ("chroma key", "tutorial_edicao")],
+                        4: [("fofoca", "entretenimento_fofoca"), ("horoscopo", "pseudociencia")],
+                        5: [("fique rico rapido", "promessa_financeira"), ("renda extra facil", "promessa_financeira")]
+                    }
+                    for kw, tag in channel_incompat.get(channel_id, []):
+                        if kw in combined_context:
+                            is_rejected = True
+                            reason = f"editorial_mismatch: context '{kw}' ({tag}) incompatible with {ch_name} ({ch_niche})"
+                            rejection_tags.append(tag)
+                            break
+
+                # 3. Verificação contextual de áudio inapto (Item 9 Guard)
+                if not is_rejected:
                     audio_meta = analysis.get("audio", {})
                     lufs_val = audio_meta.get("integrated_lufs")
-                    if audio_meta.get("audio_classification") == "SILENT_AUDIO_TRACK" or (lufs_val is not None and float(lufs_val) <= -65.0):
+                    audio_cls = audio_meta.get("audio_classification")
+                    if audio_cls in ("SILENT_AUDIO_TRACK", "NO_AUDIO_TRACK", "DECODING_FAILURE", "MEASUREMENT_FAILURE") or (lufs_val is not None and float(lufs_val) <= -65.0):
                         is_rejected = True
-                        reason = f"silent_audio_track: integrated loudness {lufs_val} LUFS is unusable (Item 9 guard)"
+                        reason = f"silent_audio_track: {audio_cls or 'SILENT'} ({lufs_val} LUFS) unusable for acoustic/editorial learning (Item 9 guard)"
+                        rejection_tags.append("unusable_audio")
 
             if is_rejected:
                 new_state = "editorially_rejected"
-                editorial_verdict = "REJECTED_SILENT_AUDIO" if "silent_audio" in reason else "REJECTED_OFF_TOPIC"
+                editorial_verdict = "REJECTED_SILENT_AUDIO" if "unusable_audio" in rejection_tags or "silent_audio" in reason else "REJECTED_OFF_TOPIC"
             else:
                 new_state = "editorial_analysis_complete"
                 editorial_verdict = "APPROVED"
+
+            profile = CHANNEL_EDITORIAL_PROFILES.get(channel_id, {})
+            matched_keywords = [kw for kw in profile.get("keywords", []) if kw in combined_context]
 
             analysis["editorial_adherence"] = {
                 "channel_id": channel_id,
@@ -925,14 +1129,17 @@ class AudiovisualLearningSystem:
                 "expected_niche": ch_niche,
                 "editorial_verdict": editorial_verdict,
                 "is_aligned": not is_rejected,
+                "matched_profile_keywords": matched_keywords,
+                "rejection_tags": rejection_tags,
                 "rejection_reason": reason if is_rejected else None,
+                "evaluated_with_transcript": bool(transcript_text),
                 "evaluated_at": time.time()
             }
 
             cursor.execute("""
                 UPDATE audiovisual_library
                 SET processing_state = ?,
-                    discard_reason = CASE WHEN ? THEN ? ELSE discard_reason END,
+                    discard_reason = CASE WHEN ? THEN ? ELSE NULL END,
                     analysis_payload = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE source_id = ?
@@ -982,14 +1189,16 @@ class AudiovisualLearningSystem:
             if not has_media:
                 raise ValueError(f"Vídeo '{sid}' não possui dados de mídia física para validação técnica.")
 
-            # Regra mandatória da Fase 15.1 / 16: Áudio silencioso (<= -65.0 LUFS ou SILENT_AUDIO_TRACK) não pode ser candidato
+            # Regra mandatória da Fase 15.1 / 16: Áudio silencioso / inexistente / falha não pode ser candidato
             audio_data = analysis.get("audio", {})
             acoustic_diag = analysis.get("acoustic_diagnosis", {})
-            lufs = audio_data.get("estimated_lufs")
-            classification = acoustic_diag.get("classification")
-            if lufs is not None and lufs <= -65.0:
+            lufs = audio_data.get("integrated_lufs")
+            if lufs is None:
+                lufs = audio_data.get("estimated_lufs")
+            classification = audio_data.get("audio_classification") or acoustic_diag.get("classification")
+            if (classification in ("SILENT_AUDIO_TRACK", "NO_AUDIO_TRACK", "DECODING_FAILURE", "MEASUREMENT_FAILURE")) or (lufs is not None and float(lufs) <= -65.0):
                 raise ValueError(
-                    f"Vídeo '{sid}' possui áudio silenciado ({lufs:.1f} LUFS / {classification}) "
+                    f"Vídeo '{sid}' possui áudio inapto ({lufs} LUFS / {classification}) "
                     f"e não pode ser promovido a candidato a aprendizado editorial."
                 )
 
@@ -1145,14 +1354,19 @@ class AudiovisualLearningSystem:
         validation_status: Optional[str] = None,
         channel_id: Optional[int] = None,
         counterexamples: Optional[List[str]] = None,
+        limitations: Optional[str] = None,
+        confidence_explanation: Optional[str] = None,
+        pilot_phase: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:
-        """Registra uma conclusão de conhecimento editorial sustentada por evidências verificáveis (Fase 15.1)."""
+        """Registra uma conclusão de conhecimento editorial sustentada por evidências verificáveis (Fase 15.1 / 16)."""
         effective_niche = niche or category or "geral"
         effective_type = knowledge_type or topic or "estrutura_narrativa"
         effective_title = title or topic or "Padrão Editorial Identificado"
         effective_summary = summary or pattern_description or ""
         effective_classification = classification or validation_status or "OBSERVAÇÃO"
+        if effective_classification == "anti_pattern":
+            effective_classification = "ANTI_PATTERN"
         effective_channel_id = target_channel_id if target_channel_id is not None else channel_id
         effective_evidence = evidence_video_ids or []
         if not effective_evidence or len(effective_evidence) == 0:
@@ -1160,7 +1374,7 @@ class AudiovisualLearningSystem:
 
         evidence_count = len(effective_evidence)
 
-        # Regra mandatória da Fase 15.1: Mínimo 2 evidências para validação; 1 evidência = observação
+        # Regra mandatória da Fase 15.1 / 16: Mínimo 2 evidências para validação; 1 evidência = observação
         if evidence_count < 2 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion", "PADRÃO", "HIPÓTESE"):
             effective_classification = "OBSERVAÇÃO"
             confidence_score = min(0.70, confidence_score)
@@ -1169,9 +1383,20 @@ class AudiovisualLearningSystem:
         elif evidence_count >= 2 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion"):
             confidence_score = max(0.80, confidence_score)
 
+        eff_explanation = confidence_explanation or (
+            f"Confiança {confidence_score:.2f} derivada de {evidence_count} evidência(s) empírica(s) "
+            f"sob classificação '{effective_classification}' (limiar mínimo de validação = 2 evidências)."
+        )
+        eff_limitations = limitations or (
+            "Baseado em amostra controlada sem métricas privadas de retenção segundo-a-segundo do YouTube Studio Analytics."
+        )
+
         meta_dict = {
             "counterexamples": counterexamples or [],
-            "source": "fase15_1_learning",
+            "limitations": eff_limitations,
+            "confidence_explanation": eff_explanation,
+            "pilot_phase": pilot_phase,
+            "source": f"fase{pilot_phase}_learning" if pilot_phase else "fase15_1_learning",
             "recorded_at": time.time()
         }
 
@@ -1205,6 +1430,8 @@ class AudiovisualLearningSystem:
                 "title": effective_title,
                 "classification": effective_classification,
                 "confidence_score": confidence_score,
+                "confidence_explanation": eff_explanation,
+                "limitations": eff_limitations,
                 "evidence_count": evidence_count,
                 "evidence_video_ids": effective_evidence,
                 "counterexamples": counterexamples or [],
@@ -1688,35 +1915,44 @@ class AudiovisualLearningSystem:
                 "candidatos_a_aprendizado": pilot_candidates
             }
 
-            # Telemetria Específica e Isolada do Piloto Fase 16 (IDs > 43 - 100 Shorts)
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43")
+            # Telemetria Específica e Isolada do Piloto Fase 16 (IDs > 43 ou pilot_phase = 16 no banco real)
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%'")
             p16_total = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND (analysis_payload LIKE '%\"physical_media\"%' OR processing_state IN ('downloaded', 'media_downloaded', 'technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate'))")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND (analysis_payload LIKE '%\"physical_media\"%' OR processing_state IN ('downloaded', 'media_downloaded', 'technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'editorially_rejected'))")
             p16_downloaded = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND processing_state IN ('technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'fully_analyzed')")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND analysis_payload LIKE '%\"ffmpeg_decode_ok\": true%'")
+            p16_physically_validated = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND (processing_state IN ('technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'fully_analyzed') OR (processing_state = 'editorially_rejected' AND analysis_payload LIKE '%\"audio\"%' AND analysis_payload LIKE '%\"visual_and_editing\"%'))")
             p16_tech_complete = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND processing_state IN ('editorial_analysis_complete', 'learning_candidate', 'fully_analyzed') AND processing_state != 'editorially_rejected' AND (discard_reason IS NULL OR discard_reason NOT LIKE '%editorial%')")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND processing_state IN ('editorial_analysis_complete', 'learning_candidate', 'fully_analyzed') AND processing_state != 'editorially_rejected' AND (discard_reason IS NULL OR discard_reason NOT LIKE '%editorial%')")
             p16_editorial_approved = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND (processing_state = 'editorially_rejected' OR discard_reason LIKE '%editorial%')")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND (processing_state = 'editorially_rejected' OR discard_reason LIKE '%editorial%' OR discard_reason LIKE '%silent_audio%')")
             p16_editorial_rejected = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND processing_state = 'learning_candidate'")
+            p16_editorial_analyzed = p16_editorial_approved + p16_editorial_rejected
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND processing_state = 'learning_candidate'")
             p16_learning_candidates = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND analysis_payload LIKE '%\"SILENT_AUDIO_TRACK\"%'")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND analysis_payload LIKE '%\"SILENT_AUDIO_TRACK\"%'")
             p16_silent_audio = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND processing_state IN ('error', 'failed')")
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND processing_state IN ('error', 'failed')")
             p16_failed = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%' OR (evidence_count >= 2 AND classification IN ('APRENDIZADO_VALIDADO', 'evidence_based_conclusion'))")
+            # Estritamente isolado para aprendizados gerados na Fase 16 (sem contar registros históricos de fases anteriores!)
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%' AND evidence_count >= 2 AND classification IN ('APRENDIZADO_VALIDADO', 'evidence_based_conclusion')")
             p16_validated_learnings = cursor.fetchone()[0]
 
-            cursor.execute("SELECT analysis_payload FROM audiovisual_library WHERE id > 43")
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%'")
+            p16_total_knowledge = cursor.fetchone()[0]
+
+            cursor.execute("SELECT analysis_payload FROM audiovisual_library WHERE id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%'")
             p16_storage_bytes = 0
             for r_pay in cursor.fetchall():
                 try:
@@ -1725,29 +1961,47 @@ class AudiovisualLearningSystem:
                 except Exception:
                     pass
 
+            # Calcula candidatos selecionados estritamente do banco de dados (checkpoint ou total do lote)
+            cursor.execute("SELECT target_goal, error_count, status FROM learning_batch_checkpoints WHERE batch_id = 'pilot_100_fase16'")
+            chk_row = cursor.fetchone()
+            p16_candidates_selected = chk_row["target_goal"] if chk_row else p16_total
+
+            p16_cb_triggered = (chk_row["error_count"] if chk_row and chk_row["status"] == "ABORTED" else 0)
+
+            try:
+                from services.model_gateway.gateway import ModelGatewayService
+                p16_cost_usd = float(ModelGatewayService().get_usage_metrics().get("total_cost_usd", 0.0))
+            except Exception:
+                p16_cost_usd = 0.0
+
             p16_channel_success = {}
             for ch in range(1, 6):
-                cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND (analysis_payload LIKE '%\"target_channel_id\": ' || ? || '%' OR raw_metadata LIKE '%\"target_channel_id\": ' || ? || '%' OR raw_metadata LIKE '%\"channel_id\": ' || ? || '%') AND processing_state IN ('technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'editorially_rejected')", (ch, ch, ch))
+                cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND (raw_metadata LIKE '%\"target_channel_id\": ' || ? || '%' OR raw_metadata LIKE '%\"channel_id\": ' || ? || '%')", (ch, ch))
+                ch_total = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND (raw_metadata LIKE '%\"target_channel_id\": ' || ? || '%' OR raw_metadata LIKE '%\"channel_id\": ' || ? || '%') AND processing_state IN ('technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'editorially_rejected')", (ch, ch))
                 succ_cnt = cursor.fetchone()[0]
-                p16_channel_success[ch] = round((succ_cnt / 20.0) * 100.0, 1) if succ_cnt > 0 else 0.0
+                p16_channel_success[ch] = round((succ_cnt / max(1, ch_total)) * 100.0, 1) if ch_total > 0 else 0.0
 
             p16_telemetry = {
                 "pilot_name": "Fase 16 - Piloto Controlado 100 Shorts",
-                "candidates_selected": 100,
+                "candidates_selected": p16_candidates_selected,
                 "total_shorts_pilot": p16_total,
                 "downloaded": p16_downloaded,
+                "physically_validated": p16_physically_validated,
                 "technically_analyzed": p16_tech_complete,
+                "editorially_analyzed": p16_editorial_analyzed,
                 "editorially_approved": p16_editorial_approved,
                 "editorially_rejected": p16_editorial_rejected,
                 "silent_audio_detected": p16_silent_audio,
                 "learning_candidates": p16_learning_candidates,
                 "validated_learnings": p16_validated_learnings,
+                "total_knowledge_recorded": p16_total_knowledge,
                 "failures": p16_failed,
-                "cost_usd": 0.0,
+                "cost_usd": p16_cost_usd,
                 "storage_used_bytes": p16_storage_bytes,
                 "storage_used_mb": round(p16_storage_bytes / (1024 * 1024), 2),
                 "success_rate_per_channel": p16_channel_success,
-                "circuit_breakers_triggered": 0
+                "circuit_breakers_triggered": p16_cb_triggered
             }
 
             return {

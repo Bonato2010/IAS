@@ -18,6 +18,8 @@ DIRS_TO_SYNC = [
     "database/migrations",
     "services/learning",
     "services/media_processing",
+    "services/video_analysis",
+    "services/transcription",
     "services/discovery",
     "services/orchestration",
     "services/distribution",

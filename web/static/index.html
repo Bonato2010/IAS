@@ -718,6 +718,28 @@
         </div>
       </div>
 
+      <!-- PILOTO CONTROLADO FASE 16 (100 SHORTS - DADOS ISOLADOS DO BANCO) -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="panel-title" style="font-size:0.92rem;"><i class="fa-solid fa-microscope" style="color:var(--accent-cyan);"></i> Piloto Controlado Fase 16 (100 Shorts — Isolado de Legado)</span>
+          <span class="badge badge-outline" id="p16-cost-badge">Custo Real: —</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(175px, 1fr)); gap:10px; margin-bottom:12px;" id="p16-metrics-grid">
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Candidatos Selecionados</div><strong id="p16-selected">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Downloads Concluídos</div><strong id="p16-downloaded">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Validados Fisicamente</div><strong id="p16-phys-valid">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Análises Técnicas</div><strong id="p16-tech">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Análises Editoriais</div><strong id="p16-editorial">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Rejeitados / Falhas</div><strong id="p16-rej-fail" style="color:var(--accent-rose);">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Candidatos Aprendizado</div><strong id="p16-candidates" style="color:var(--accent-cyan);">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Aprendizados Validados</div><strong id="p16-validated" style="color:var(--accent-emerald);">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Armazenamento Usado</div><strong id="p16-storage">—</strong></div>
+        </div>
+        <div style="font-size:0.78rem; color:var(--text-secondary);">
+          <strong>Taxa de Sucesso por Canal:</strong> <span id="p16-channel-rates">—</span>
+        </div>
+      </div>
+
       <!-- BIBLIOTECA DE CONHECIMENTO EDITORIAL -->
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-header">
@@ -1927,6 +1949,23 @@
           for (const [lang, count] of Object.entries(langs)) {
             langChips.innerHTML += `<span class="badge badge-outline">${lang}: <strong>${count}</strong></span>`;
           }
+        }
+
+        // 4b. Telemetria Isolada do Piloto Fase 16
+        const p16 = data.pilot_fase16_metrics || {};
+        if (document.getElementById('p16-selected')) document.getElementById('p16-selected').innerText = (p16.candidates_selected ?? 0).toLocaleString();
+        if (document.getElementById('p16-downloaded')) document.getElementById('p16-downloaded').innerText = (p16.downloaded ?? 0).toLocaleString();
+        if (document.getElementById('p16-phys-valid')) document.getElementById('p16-phys-valid').innerText = (p16.physically_validated ?? 0).toLocaleString();
+        if (document.getElementById('p16-tech')) document.getElementById('p16-tech').innerText = (p16.technically_analyzed ?? 0).toLocaleString();
+        if (document.getElementById('p16-editorial')) document.getElementById('p16-editorial').innerText = (p16.editorially_analyzed ?? 0).toLocaleString();
+        if (document.getElementById('p16-rej-fail')) document.getElementById('p16-rej-fail').innerText = `${p16.editorially_rejected ?? 0} / ${p16.failures ?? 0}`;
+        if (document.getElementById('p16-candidates')) document.getElementById('p16-candidates').innerText = (p16.learning_candidates ?? 0).toLocaleString();
+        if (document.getElementById('p16-validated')) document.getElementById('p16-validated').innerText = (p16.validated_learnings ?? 0).toLocaleString();
+        if (document.getElementById('p16-storage')) document.getElementById('p16-storage').innerText = `${p16.storage_used_mb ?? 0} MB`;
+        if (document.getElementById('p16-cost-badge')) document.getElementById('p16-cost-badge').innerText = `Custo Real: $${Number(p16.cost_usd ?? 0).toFixed(2)}`;
+        if (document.getElementById('p16-channel-rates')) {
+          const rates = p16.success_rate_per_channel || {};
+          document.getElementById('p16-channel-rates').innerText = Object.entries(rates).map(([ch, pct]) => `C${ch}: ${pct}%`).join(' | ') || '—';
         }
 
         // 5. Tabelas de Conhecimento e Experimentos
