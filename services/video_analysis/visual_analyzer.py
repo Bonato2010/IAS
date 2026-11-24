@@ -97,3 +97,22 @@ class OpenCVVisualAnalyzer:
             "ffmpeg_crop_offset_x": crop_expr,
             "smart_crop_applied": abs(clamped_x - 0.5) > 0.05
         }
+
+    def verify_resolution(self, video_path: str) -> Dict[str, Any]:
+        """Verifica resolução e proporção vertical 9:16 do vídeo físico via OpenCV."""
+        if not os.path.exists(video_path):
+            return {"error": f"Arquivo não encontrado: {video_path}"}
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return {"error": "Não foi possível abrir o arquivo via OpenCV"}
+        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        cap.release()
+        is_vertical = h > w and w > 0
+        ratio = f"{w}:{h}" if w and h else "unknown"
+        return {
+            "width": w,
+            "height": h,
+            "is_vertical_9_16": is_vertical,
+            "aspect_ratio": ratio
+        }

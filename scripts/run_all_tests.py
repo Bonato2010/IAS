@@ -24,7 +24,15 @@ TEST_FILES = [
     "test_fase4_discovery_portal1.py",
     "test_fase5_audiovisual.py",
     "test_fase6_distribution.py",
-    "test_fase7_dashboard.py"
+    "test_fase7_dashboard.py",
+    "test_fase8_vantis_pipeline.py",
+    "test_fase9_agent_architecture.py",
+    "test_fase10_audiovisual_pipeline.py",
+    "test_fase11_pilot_channels_and_dashboard.py",
+    "test_fase12_deployment_and_editorial_training.py",
+    "test_fase13_massive_audiovisual_learning.py",
+    "test_fase14_real_learning_and_zero_simulation.py",
+    "test_fase15_real_shorts_physical_pilot.py"
 ]
 
 def run_test_suite():

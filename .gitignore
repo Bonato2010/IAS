@@ -58,6 +58,7 @@ pip-delete-this-directory.txt
 # Arquivos Temporários e Backups
 *.bak
 *.tmp
+scratch/
 
 # IDEs e Editores
 .vscode/

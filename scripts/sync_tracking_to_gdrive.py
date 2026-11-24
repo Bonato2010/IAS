@@ -21,7 +21,8 @@ DOCS_TO_SYNC = [
     "BLOCKERS.md"
 ]
 ADDITIONAL_DOCS = [
-    ("FASE14_INDEPENDENT_AUDIT.md", BASE_DIR / "docs" / "audits" / "FASE14_INDEPENDENT_AUDIT.md")
+    ("FASE14_INDEPENDENT_AUDIT.md", BASE_DIR / "docs" / "audits" / "FASE14_INDEPENDENT_AUDIT.md"),
+    ("FASE15_REAL_SHORTS_PILOT.md", BASE_DIR / "docs" / "audits" / "FASE15_REAL_SHORTS_PILOT.md")
 ]
 
 def sync_tracking_to_gdrive():

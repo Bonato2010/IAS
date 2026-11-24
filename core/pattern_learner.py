@@ -158,9 +158,10 @@ class PatternLearner:
             }
 
         try:
-            scene_svc = SceneDetectorService()
-            scenes = scene_svc.detect_scenes(video_path, threshold=27.0)
-            cuts_count = max(0, len(scenes) - 1)
+            scene_svc = SceneDetectorService(threshold=27.0)
+            scene_res = scene_svc.detect_scenes(video_path)
+            scene_list = scene_res.get("scenes", [])
+            cuts_count = max(0, scene_res.get("total_scenes", len(scene_list)) - 1)
 
             vis_analyzer = OpenCVVisualAnalyzer()
             res_info = vis_analyzer.verify_resolution(video_path)
@@ -168,7 +169,7 @@ class PatternLearner:
 
             return {
                 "has_visual_analysis": True,
-                "scenes_detected": len(scenes),
+                "scenes_detected": len(scene_list),
                 "total_cuts": cuts_count,
                 "is_vertical_9_16": is_vertical,
                 "resolution": f"{res_info.get('width')}x{res_info.get('height')}",
@@ -276,15 +277,31 @@ class PatternLearner:
             "evidence_video_ids": [v_id]
         }
 
-        # Registra no CentralMemory
+        # Registra no CentralMemory com isolamento por canal
         node_id = self.memory.record_knowledge_node(
             category_slug=niche,
             node_type=f"analysis_{analysis_depth.lower()}",
             title=f"Estudo Audiovisual ({classification}): {title[:35]}",
             pattern_data=knowledge_record,
             effectiveness_score=85.0 if analysis_depth == "FULL_MULTIMODAL" else 60.0,
-            derived_from=[v_id]
+            derived_from=[v_id],
+            channel_id=target_channel_id
         )
+
+        # Registra na biblioteca de conhecimento editorial com evidência auditável
+        try:
+            self.learning_sys.record_knowledge(
+                niche=niche,
+                knowledge_type="multimodal_pattern",
+                title=f"Padrão Audiovisual ({classification}): {title[:35]}",
+                summary=f"Análise {analysis_depth} do vídeo {v_id}. Gancho: {narrative.get('hook_0_3s') or 'Visual'}.",
+                classification=classification,
+                confidence_score=0.90 if classification == "APRENDIZADO_VALIDADO" else 0.70,
+                evidence_video_ids=[v_id],
+                target_channel_id=target_channel_id
+            )
+        except Exception:
+            pass
 
         # Registra no Playbook
         learned_item = {

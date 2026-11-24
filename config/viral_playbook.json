@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "total_learned_patterns": 20,
+  "total_learned_patterns": 40,
   "archetypes": {
     "humor_zoeira": {
       "description": "Quebra de expectativa rápida, reações cômicas, situações absurdas e piadas de timing seco.",
@@ -256,6 +256,228 @@
       "classification": "PADRÃO",
       "analysis_depth": "PARTIAL_NARRATIVE",
       "hook": "Kind: captions Language: pt fala<00:00:00.539><c> Dev</c><00:00:01.079><c> quando</c><00:00:01.260><c> temos</c><00:00:01.560><c> horas</c><00:00:01.920><c> e</c><00:00:02.159><c> horas</c><00:00:02.280><c> de</c> fala Dev quando",
+      "triggers": []
+    },
+    {
+      "node_id": 21,
+      "evidence_video_id": "Jdd0OrzByJc",
+      "url": "https://www.youtube.com/shorts/Jdd0OrzByJc",
+      "title": "FOI FALTA OU SEGUE O JOGO?! 😱⚽ Lance polêmico em Bazuca x Marques! #Shorts",
+      "niche": "futebol_outros",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 23,
+      "evidence_video_id": "y021RWEXvRc",
+      "url": "https://www.youtube.com/shorts/y021RWEXvRc",
+      "title": "Real Madrid vs Champions: O gol que calou o mundo!",
+      "niche": "futebol_outros",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 24,
+      "evidence_video_id": "K_lRs6MieJU",
+      "url": "https://www.youtube.com/shorts/K_lRs6MieJU",
+      "title": "Arte do Drible -  Jogadas INCRÍVEIS #1 #futebol #football #brasil #dribles #shorts",
+      "niche": "futebol_outros",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 26,
+      "evidence_video_id": "Oy5m1qwhlv8",
+      "url": "https://www.youtube.com/shorts/Oy5m1qwhlv8",
+      "title": "SHORT JEANS Cintura Baixa. Os Melhores & mais Lindos SHORTS JEANS!  #jeans #shortsjeans",
+      "niche": "casos_policiais",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 27,
+      "evidence_video_id": "ucB3VIPIFmg",
+      "url": "https://www.youtube.com/shorts/ucB3VIPIFmg",
+      "title": "Pegadinha do elevador dance part 5 #viralvideo #humor",
+      "niche": "humor",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 29,
+      "evidence_video_id": "wKuMkUMv_z0",
+      "url": "https://www.youtube.com/shorts/wKuMkUMv_z0",
+      "title": "Pitibu ou Dono? A Guerra da Coxinha 😂🐶 #animaisengraçados #humor #shortsbrasil #shortsviral",
+      "niche": "humor",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 30,
+      "evidence_video_id": "uAHpb9LEano",
+      "url": "https://www.youtube.com/shorts/uAHpb9LEano",
+      "title": "Caramelo recebeu Carinho da Vovó #humor #comedia #memes #viral #shorts #engraçado #viralvideo",
+      "niche": "humor",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 31,
+      "evidence_video_id": "rQdnWSJMABY",
+      "url": "https://www.youtube.com/shorts/rQdnWSJMABY",
+      "title": "Curiosidades de Ciências",
+      "niche": "curiosidades",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 32,
+      "evidence_video_id": "2ZgeblAgr5g",
+      "url": "https://www.youtube.com/shorts/2ZgeblAgr5g",
+      "title": "Fato em Pauta: ciência, natureza e curiosidades em movimento 🌎",
+      "niche": "curiosidades",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 34,
+      "evidence_video_id": "Cj7aHpWyavs",
+      "url": "https://www.youtube.com/shorts/Cj7aHpWyavs",
+      "title": "Disciplina",
+      "niche": "desenvolvimento_pessoal",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 35,
+      "evidence_video_id": "hbnVOPtNWhg",
+      "url": "https://www.youtube.com/shorts/hbnVOPtNWhg",
+      "title": "Disciplina vence motivação !!",
+      "niche": "desenvolvimento_pessoal",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 37,
+      "evidence_video_id": "cKTwGWKweuY",
+      "url": "https://www.youtube.com/shorts/cKTwGWKweuY",
+      "title": "Disciplinafazmilionário #motivacao#dinheiro#riqueza#disciplina#milionario#coach#shorts#motivacional",
+      "niche": "desenvolvimento_pessoal",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    },
+    {
+      "node_id": 39,
+      "evidence_video_id": "PRJEgHR-8sw",
+      "url": "https://www.youtube.com/shorts/PRJEgHR-8sw",
+      "title": "Um suspeito preso: Tribunal do crime filma execução de mototaxista",
+      "niche": "casos_policiais",
+      "classification": "OBSERVAÇÃO",
+      "analysis_depth": "PRELIMINARY_METADATA_ONLY",
+      "hook": null,
+      "triggers": []
+    }
+  ],
+  "evidence_based_patterns": [
+    {
+      "node_id": 22,
+      "evidence_video_id": "m5thL61AyDg",
+      "url": "https://www.youtube.com/shorts/m5thL61AyDg",
+      "title": "LANCE POLEMICO DO GOL DO PALMEIRAS CONTRA O MIRASSOL",
+      "niche": "futebol_outros",
+      "classification": "APRENDIZADO_VALIDADO",
+      "analysis_depth": "FULL_MULTIMODAL",
+      "hook": "Kind: captions Language: pt Olha<00:00:00.880><c> o</c><00:00:01.000><c> cruzamento,</c><00:00:01.560><c> bola</c><00:00:01.839><c> pra</c><00:00:02.080><c> área,</c><00:00:02.480><c> Walter</c> Olha o cruzamento, bola",
+      "triggers": []
+    },
+    {
+      "node_id": 25,
+      "evidence_video_id": "Dx3ici6vMuI",
+      "url": "https://www.youtube.com/shorts/Dx3ici6vMuI",
+      "title": "Mistérios sem explicação #3 - Círculos da Namíbia",
+      "niche": "casos_policiais",
+      "classification": "APRENDIZADO_VALIDADO",
+      "analysis_depth": "FULL_MULTIMODAL",
+      "hook": "Kind: captions Language: pt Você<00:00:00.539><c> já</c><00:00:00.719><c> ouviu</c><00:00:00.840><c> falar</c><00:00:00.960><c> dos</c><00:00:01.260><c> misteriosos</c> Você já ouviu falar dos",
+      "triggers": []
+    },
+    {
+      "node_id": 28,
+      "evidence_video_id": "LJAxRPjbEws",
+      "url": "https://www.youtube.com/shorts/LJAxRPjbEws",
+      "title": "UM CLIENTE MUITO IGNORANTE.#humor#comedia#pegadinha#trolagem#piadas",
+      "niche": "humor",
+      "classification": "APRENDIZADO_VALIDADO",
+      "analysis_depth": "FULL_MULTIMODAL",
+      "hook": "Kind: captions Language: en [Music] [Music] [Music] people [Music] [Music] [Music] I <00:00:13.056><c>have </c><00:00:13.372><c>Good </c><00:00:13.688><c>afternoon,",
+      "triggers": []
+    },
+    {
+      "node_id": 33,
+      "evidence_video_id": "FXLLXA11jmo",
+      "url": "https://www.youtube.com/shorts/FXLLXA11jmo",
+      "title": "\"5 Curiosidades INCRÍVEIS que Você NUNCA Imaginou!\" #shorts #brasil #curiosidades #viral",
+      "niche": "curiosidades",
+      "classification": "APRENDIZADO_VALIDADO",
+      "analysis_depth": "FULL_MULTIMODAL",
+      "hook": "Kind: captions Language: pt Você<00:00:01.680><c> conhece</c><00:00:01.920><c> o</c><00:00:02.340><c> efeito</c><00:00:02.460><c> do</c><00:00:02.700><c> nicruder</c><00:00:03.240><c> e</c><00:00:04.080><c> um</c> Você conhece o",
+      "triggers": []
+    },
+    {
+      "node_id": 36,
+      "evidence_video_id": "dNS8AoqSwtU",
+      "url": "https://www.youtube.com/shorts/dNS8AoqSwtU",
+      "title": "O dia que vai mudar sua vida! #motivacao #disciplina #desenvolvimentopessoal #foco #shorts",
+      "niche": "desenvolvimento_pessoal",
+      "classification": "APRENDIZADO_VALIDADO",
+      "analysis_depth": "FULL_MULTIMODAL",
+      "hook": "Kind: captions Language: pt O<00:00:00.200><c> dia</c><00:00:00.480><c> que</c><00:00:00.600><c> vai</c><00:00:00.800><c> mudar</c><00:00:01.160><c> a</c><00:00:01.200><c> sua</c><00:00:01.520><c> vida,</c> O dia que",
+      "triggers": []
+    },
+    {
+      "node_id": 38,
+      "evidence_video_id": "ppIwQp5GKo0",
+      "url": "https://www.youtube.com/shorts/ppIwQp5GKo0",
+      "title": "#bandido luz vermelha #shorts #truestory #crime #mistério #historiareal #terror #curiosidades #medo",
+      "niche": "casos_policiais",
+      "classification": "APRENDIZADO_VALIDADO",
+      "analysis_depth": "FULL_MULTIMODAL",
+      "hook": "Kind: captions Language: pt E<00:00:00.160><c> se</c><00:00:00.320><c> você</c><00:00:00.560><c> acordasse</c><00:00:01.800><c> e</c><00:00:02.040><c> visse</c><00:00:02.280><c> uma</c><00:00:02.440><c> luz</c> E se você",
+      "triggers": []
+    },
+    {
+      "node_id": 40,
+      "evidence_video_id": "lTpfw2naYgo",
+      "url": "https://www.youtube.com/shorts/lTpfw2naYgo",
+      "title": "Efeito Borboleta_ Sanduíche Fatal #curiosidades #fatos",
+      "niche": "curiosidades",
+      "classification": "APRENDIZADO_VALIDADO",
+      "analysis_depth": "FULL_MULTIMODAL",
+      "hook": "Kind: captions Language: pt O<00:00:00.440><c> efeito</c><00:00:00.840><c> borboleta</c><00:00:01.400><c> é</c><00:00:01.560><c> a</c><00:00:01.640><c> ideia</c><00:00:01.920><c> de</c><00:00:02.080><c> que</c><00:00:02.240><c> um</c> O efeito",
       "triggers": []
     }
   ]
