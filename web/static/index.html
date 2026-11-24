@@ -733,6 +733,9 @@
           <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Rejeitados / Falhas</div><strong id="p16-rej-fail" style="color:var(--accent-rose);">—</strong></div>
           <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Candidatos Aprendizado</div><strong id="p16-candidates" style="color:var(--accent-cyan);">—</strong></div>
           <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Aprendizados Validados</div><strong id="p16-validated" style="color:var(--accent-emerald);">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Obs. / Hipóteses / Anti</div><strong id="p16-obs-hyp">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Fala / Sem Fala Suf.</div><strong id="p16-speech-split">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Retentativas / Tempo Méd.</div><strong id="p16-retry-time">—</strong></div>
           <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.75rem; color:var(--text-tertiary);">Armazenamento Usado</div><strong id="p16-storage">—</strong></div>
         </div>
         <div style="font-size:0.78rem; color:var(--text-secondary);">
@@ -1961,6 +1964,9 @@
         if (document.getElementById('p16-rej-fail')) document.getElementById('p16-rej-fail').innerText = `${p16.editorially_rejected ?? 0} / ${p16.failures ?? 0}`;
         if (document.getElementById('p16-candidates')) document.getElementById('p16-candidates').innerText = (p16.learning_candidates ?? 0).toLocaleString();
         if (document.getElementById('p16-validated')) document.getElementById('p16-validated').innerText = (p16.validated_learnings ?? 0).toLocaleString();
+        if (document.getElementById('p16-obs-hyp')) document.getElementById('p16-obs-hyp').innerText = `${p16.observations_count ?? 0} / ${p16.hypotheses_count ?? 0} / ${p16.anti_patterns_count ?? 0}`;
+        if (document.getElementById('p16-speech-split')) document.getElementById('p16-speech-split').innerText = `${p16.videos_with_transcripts ?? 0} / ${p16.videos_insufficient_speech ?? 0}`;
+        if (document.getElementById('p16-retry-time')) document.getElementById('p16-retry-time').innerText = `${p16.retries_count ?? 0} / ${p16.avg_processing_time_sec ?? 0}s`;
         if (document.getElementById('p16-storage')) document.getElementById('p16-storage').innerText = `${p16.storage_used_mb ?? 0} MB`;
         if (document.getElementById('p16-cost-badge')) document.getElementById('p16-cost-badge').innerText = `Custo Real: $${Number(p16.cost_usd ?? 0).toFixed(2)}`;
         if (document.getElementById('p16-channel-rates')) {

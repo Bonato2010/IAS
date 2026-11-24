@@ -194,8 +194,8 @@ class CentralOperationsController:
             conn.commit()
             return cursor.rowcount > 0
 
-    def fail_task_with_retry(self, task_id: str, error_message: str, backoff_seconds: int = 30) -> Dict[str, Any]:
-        """Registra falha com retentativa exponencial ou escalonamento final para intervenção humana."""
+    def fail_task_with_retry(self, task_id: str, error_message: str, backoff_seconds: int = 30, permanent: bool = False) -> Dict[str, Any]:
+        """Registra falha com retentativa exponencial ou marcação imediata de falha permanente."""
         now = datetime.datetime.now()
         now_iso = now.isoformat()
         with sqlite3.connect(self.db_path) as conn:
@@ -206,9 +206,13 @@ class CentralOperationsController:
                 return {"success": False, "error": "Tarefa não encontrada"}
 
             attempts, max_attempts = row
-            if attempts < max_attempts:
+            if permanent:
+                retry_time = None
+                new_status = TASK_STATUS_FAILED
+                action = "Falha permanente identificada. Reintentos cancelados."
+            elif attempts < max_attempts:
                 # Calcula backoff exponencial: 30s, 60s, 120s...
-                delay = backoff_seconds * (2 ** (attempts - 1))
+                delay = backoff_seconds * (2 ** max(0, attempts - 1))
                 retry_time = (now + datetime.timedelta(seconds=delay)).isoformat()
                 new_status = TASK_STATUS_RETRYING
                 action = f"Agendada nova tentativa em {delay}s (Tentativa {attempts}/{max_attempts})"
@@ -229,6 +233,7 @@ class CentralOperationsController:
             "success": True,
             "task_id": task_id,
             "status": new_status,
+            "permanent_failure": permanent,
             "attempts": attempts,
             "max_attempts": max_attempts,
             "action": action

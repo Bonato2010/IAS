@@ -126,3 +126,16 @@
 - **Custo Zero Mantido:** Ausência total de chamadas a provedores comerciais pagos, mantendo o custo estritamente em **$0.00**.
 - **Emissão do Relatório Formal:** Documento auditado em `docs/audits/FASE16_PILOT_100_SHORTS.md` com os 17 itens obrigatórios e a matriz forense completa dos 100 vídeos.
 - **Veredicto do Gate Final:** **PILOTO APROVADO — PRONTO PARA AUDITORIA DE ESCALA**. Trava de 7.000 vídeos estritamente mantida.
+
+---
+
+## [2026-11-24] - Fase 17: Auditoria de Escala, Validação dos Aprendizados e Preparação para 7.000 Vídeos
+
+### Tarefas executadas
+- **Auditoria dos 23 Aprendizados da Fase 16 (`audit_and_reclassify_phase16_knowledge`):** Reavaliação empírica rigorosa identificando que 12 de 15 itens marcados como `APRENDIZADO_VALIDADO` não tinham sustentação de engajamento ou contraexemplos (8 reclassificados para `HIPÓTESE` e 4 para `PENDENTE_DE_VALIDACAO`), mantendo histórico completo em `metadata.classification_history` e confirmando 3 `APRENDIZADO_VALIDADO`, 5 `OBSERVAÇÃO` e 3 `ANTI_PATTERN`.
+- **Teste de Utilidade Editorial A/B (`services/learning/editorial_utility_evaluator.py`):** Avaliação em holdout independente de 20 vídeos da Fase 15 (`overlap = 0`), comprovando ganhos reais em triagem off-topic, detecção de áudio silencioso e recomendações por canal, e registrando limitações reais de predição de retenção.
+- **Validação Cruzada e Isolamento (`query_editorial_rule_for_channel`):** Bloqueio explícito de contaminação entre canais distintos (Futebol/Ciência, Humor/Produtividade, Arquivo Sombrio/Ciência) separando regras técnicas universais.
+- **Arquitetura de Escala, Fila e Seleção Estratificada (`services/discovery/scale_selector.py`, `central_controller.py`):** Projeção de 3 cenários (Conservador, Realista, Pessimista) para 7.000 vídeos, suporte a `permanent=True` na `task_queue`, seleção estratificada anti-viés de popularidade (`emerging/mid_tier/viral`) com split `70/15/15` (`train/validation/test`).
+- **Proteção Contra Aprendizado Defeituoso & Observabilidade:** Deduplicação em `record_knowledge()`, bloqueio de evidência corrompida, guarda de contraexemplos, contrato `explain_knowledge()`, e 17+ indicadores reais no dashboard (`web/static/index.html`).
+- **Regressão Completa:** `tests/test_fase17_scale_readiness.py` (10/10) e `scripts/run_all_tests.py` com **19/19 suítes / 170/170 testes aprovados (100.0%, exit code 0)**.
+- **Relatório e Classificação Final:** Emitido `docs/audits/FASE17_SCALE_READINESS_AUDIT.md` com veredicto **`READY_WITH_RESERVATIONS`**. Processamento dos 7.000 vídeos mantido bloqueado.

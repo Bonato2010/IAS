@@ -49,6 +49,17 @@ VALID_STATES = {
     "error"
 }
 
+# Classificações epistemológicas válidas (Fase 15.1 / 16 / 17)
+VALID_KNOWLEDGE_CLASSIFICATIONS = {
+    "OBSERVAÇÃO",
+    "HIPÓTESE",
+    "PADRÃO",
+    "APRENDIZADO_VALIDADO",
+    "ANTI_PATTERN",
+    "PENDENTE_DE_VALIDACAO",
+    "evidence_based_conclusion"
+}
+
 # Categorias acústicas rigorosas (Fase 15.1)
 ACOUSTIC_CLASSIFICATIONS = {
     "VALID_AUDIO",
@@ -1357,9 +1368,10 @@ class AudiovisualLearningSystem:
         limitations: Optional[str] = None,
         confidence_explanation: Optional[str] = None,
         pilot_phase: Optional[int] = None,
+        require_counterexamples: bool = False,
         **kwargs
     ) -> Dict[str, Any]:
-        """Registra uma conclusão de conhecimento editorial sustentada por evidências verificáveis (Fase 15.1 / 16)."""
+        """Registra uma conclusão de conhecimento editorial com proteção contra aprendizado defeituoso (Fase 17)."""
         effective_niche = niche or category or "geral"
         effective_type = knowledge_type or topic or "estrutura_narrativa"
         effective_title = title or topic or "Padrão Editorial Identificado"
@@ -1367,38 +1379,13 @@ class AudiovisualLearningSystem:
         effective_classification = classification or validation_status or "OBSERVAÇÃO"
         if effective_classification == "anti_pattern":
             effective_classification = "ANTI_PATTERN"
-        effective_channel_id = target_channel_id if target_channel_id is not None else channel_id
-        effective_evidence = evidence_video_ids or []
-        if not effective_evidence or len(effective_evidence) == 0:
-            raise ValueError("evidence_video_ids não pode estar vazio: conclusões editoriais requerem evidências verificáveis.")
-
-        evidence_count = len(effective_evidence)
-
-        # Regra mandatória da Fase 15.1 / 16: Mínimo 2 evidências para validação; 1 evidência = observação
-        if evidence_count < 2 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion", "PADRÃO", "HIPÓTESE"):
+        if effective_classification not in VALID_KNOWLEDGE_CLASSIFICATIONS:
             effective_classification = "OBSERVAÇÃO"
-            confidence_score = min(0.70, confidence_score)
-        elif evidence_count >= 4 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion"):
-            confidence_score = max(0.90, confidence_score)
-        elif evidence_count >= 2 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion"):
-            confidence_score = max(0.80, confidence_score)
 
-        eff_explanation = confidence_explanation or (
-            f"Confiança {confidence_score:.2f} derivada de {evidence_count} evidência(s) empírica(s) "
-            f"sob classificação '{effective_classification}' (limiar mínimo de validação = 2 evidências)."
-        )
-        eff_limitations = limitations or (
-            "Baseado em amostra controlada sem métricas privadas de retenção segundo-a-segundo do YouTube Studio Analytics."
-        )
-
-        meta_dict = {
-            "counterexamples": counterexamples or [],
-            "limitations": eff_limitations,
-            "confidence_explanation": eff_explanation,
-            "pilot_phase": pilot_phase,
-            "source": f"fase{pilot_phase}_learning" if pilot_phase else "fase15_1_learning",
-            "recorded_at": time.time()
-        }
+        effective_channel_id = target_channel_id if target_channel_id is not None else channel_id
+        effective_evidence = list(dict.fromkeys(evidence_video_ids or []))
+        if not effective_evidence:
+            raise ValueError("evidence_video_ids não pode estar vazio: conclusões editoriais requerem evidências verificáveis.")
 
         close_conn = False
         if conn is None:
@@ -1407,20 +1394,111 @@ class AudiovisualLearningSystem:
 
         try:
             cursor = conn.cursor()
-            evidence_json = json.dumps(effective_evidence)
 
-            cursor.execute("""
-                INSERT OR REPLACE INTO editorial_knowledge_library (
-                    niche, target_channel_id, knowledge_type, title, summary,
-                    classification, confidence_score, evidence_video_ids, evidence_count,
-                    actionable_recommendation, anti_pattern_warning, metadata, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """, (
-                effective_niche, effective_channel_id, effective_type, effective_title, effective_summary,
-                effective_classification, confidence_score, evidence_json, evidence_count,
-                actionable_recommendation, anti_pattern_warning, json.dumps(meta_dict)
-            ))
-            kid = cursor.lastrowid
+            # Proteção contra aprendizados derivados de arquivos corrompidos/falhos no banco
+            if effective_evidence:
+                placeholders = ",".join(["?"] * len(effective_evidence))
+                bad_rows = cursor.execute(
+                    f"SELECT source_id, processing_state FROM audiovisual_library WHERE source_id IN ({placeholders}) AND processing_state IN ('failed', 'error')",
+                    tuple(effective_evidence)
+                ).fetchall()
+                if bad_rows:
+                    bad_ids = [r["source_id"] for r in bad_rows]
+                    raise ValueError(f"Aprendizado rejeitado: evidências contêm arquivos corrompidos/falhos: {bad_ids}")
+
+            evidence_count = len(effective_evidence)
+            eff_counterexamples = list(dict.fromkeys(counterexamples or []))
+            downgrade_reason = None
+
+            # Regra mandatória da Fase 15.1 / 16 / 17:
+            # - 1 evidência = OBSERVAÇÃO (<= 0.70)
+            # - APRENDIZADO_VALIDADO exige >= 2 evidências E >= 1 contraexemplo documentado
+            if evidence_count < 2 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion", "PADRÃO", "HIPÓTESE"):
+                downgrade_reason = "Evidência única (N=1) insuficiente para validação; rebaixado para OBSERVAÇÃO."
+                effective_classification = "OBSERVAÇÃO"
+                confidence_score = min(0.70, confidence_score)
+            elif effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion"):
+                if require_counterexamples and not eff_counterexamples:
+                    downgrade_reason = "Regra editorial sem contraexemplos documentados; rebaixada para PENDENTE_DE_VALIDACAO (Fase 17)."
+                    effective_classification = "PENDENTE_DE_VALIDACAO"
+                    confidence_score = min(0.75, confidence_score)
+                elif evidence_count >= 4:
+                    confidence_score = max(0.90, confidence_score)
+                elif evidence_count >= 2:
+                    confidence_score = max(0.80, confidence_score)
+
+            eff_explanation = confidence_explanation or (
+                f"Confiança {confidence_score:.2f} derivada de {evidence_count} evidência(s) empírica(s) "
+                f"e {len(eff_counterexamples)} contraexemplo(s) sob classificação '{effective_classification}'."
+            )
+            eff_limitations = limitations or (
+                "Baseado em amostra controlada sem métricas privadas de retenção segundo-a-segundo do YouTube Studio Analytics."
+            )
+
+            # Proteção contra duplicação de aprendizados no mesmo canal/nicho/tipo/título
+            dup_row = cursor.execute("""
+                SELECT id, evidence_video_ids, metadata FROM editorial_knowledge_library
+                WHERE COALESCE(target_channel_id, -1) = COALESCE(?, -1)
+                  AND niche = ? AND knowledge_type = ? AND lower(title) = lower(?)
+                LIMIT 1
+            """, (effective_channel_id, effective_niche, effective_type, effective_title)).fetchone()
+
+            if dup_row:
+                prev_ev = json.loads(dup_row["evidence_video_ids"] or "[]")
+                merged_ev = list(dict.fromkeys(prev_ev + effective_evidence))
+                prev_meta = json.loads(dup_row["metadata"] or "{}")
+                merged_counters = list(dict.fromkeys(prev_meta.get("counterexamples", []) + eff_counterexamples))
+                meta_dict = {
+                    **prev_meta,
+                    "counterexamples": merged_counters,
+                    "limitations": eff_limitations,
+                    "confidence_explanation": eff_explanation,
+                    "pilot_phase": pilot_phase if pilot_phase is not None else prev_meta.get("pilot_phase"),
+                    "deduplicated_merge": True,
+                    "downgrade_reason": downgrade_reason,
+                    "recorded_at": time.time()
+                }
+                cursor.execute("""
+                    UPDATE editorial_knowledge_library
+                    SET summary = ?, classification = ?, confidence_score = ?,
+                        evidence_video_ids = ?, evidence_count = ?,
+                        actionable_recommendation = ?, anti_pattern_warning = ?,
+                        metadata = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (
+                    effective_summary, effective_classification, confidence_score,
+                    json.dumps(merged_ev), len(merged_ev),
+                    actionable_recommendation, anti_pattern_warning,
+                    json.dumps(meta_dict), dup_row["id"]
+                ))
+                kid = dup_row["id"]
+                effective_evidence = merged_ev
+                evidence_count = len(merged_ev)
+                eff_counterexamples = merged_counters
+            else:
+                meta_dict = {
+                    "counterexamples": eff_counterexamples,
+                    "limitations": eff_limitations,
+                    "confidence_explanation": eff_explanation,
+                    "pilot_phase": pilot_phase,
+                    "downgrade_reason": downgrade_reason,
+                    "source": f"fase{pilot_phase}_learning" if pilot_phase else "fase17_learning",
+                    "recorded_at": time.time()
+                }
+                evidence_json = json.dumps(effective_evidence)
+                cursor.execute("""
+                    INSERT INTO editorial_knowledge_library (
+                        niche, target_channel_id, knowledge_type, title, summary,
+                        classification, confidence_score, evidence_video_ids, evidence_count,
+                        actionable_recommendation, anti_pattern_warning, metadata, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """, (
+                    effective_niche, effective_channel_id, effective_type, effective_title, effective_summary,
+                    effective_classification, confidence_score, evidence_json, evidence_count,
+                    actionable_recommendation, anti_pattern_warning, json.dumps(meta_dict)
+                ))
+                kid = cursor.lastrowid
+
             conn.commit()
             return {
                 "id": kid,
@@ -1434,9 +1512,10 @@ class AudiovisualLearningSystem:
                 "limitations": eff_limitations,
                 "evidence_count": evidence_count,
                 "evidence_video_ids": effective_evidence,
-                "counterexamples": counterexamples or [],
+                "counterexamples": eff_counterexamples,
                 "actionable_recommendation": actionable_recommendation,
-                "anti_pattern_warning": anti_pattern_warning
+                "anti_pattern_warning": anti_pattern_warning,
+                "downgrade_reason": downgrade_reason
             }
         finally:
             if close_conn:
@@ -1445,6 +1524,203 @@ class AudiovisualLearningSystem:
     def _record_knowledge(self, *args, **kwargs):
         """Compatibilidade reversa."""
         return self.record_knowledge(*args, **kwargs)
+
+    def explain_knowledge(self, knowledge_id: int) -> Dict[str, Any]:
+        """
+        Responde às 3 perguntas obrigatórias de explicabilidade (Fase 17 Seção 8):
+        1. Por que esse padrão funciona?
+        2. Quais vídeos sustentam essa conclusão?
+        3. Em quais situações ele pode falhar?
+        """
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            row = cursor.execute(
+                "SELECT * FROM editorial_knowledge_library WHERE id = ?", (knowledge_id,)
+            ).fetchone()
+            if not row:
+                raise ValueError(f"Conhecimento ID {knowledge_id} não encontrado.")
+
+            meta = json.loads(row["metadata"] or "{}")
+            ev_ids = json.loads(row["evidence_video_ids"] or "[]")
+            counterexamples = meta.get("counterexamples", [])
+            limitations = meta.get("limitations", "")
+            conf_exp = meta.get("confidence_explanation", "")
+
+            supporting_videos = []
+            if ev_ids:
+                placeholders = ",".join(["?"] * len(ev_ids))
+                v_rows = cursor.execute(
+                    f"SELECT source_id, title, duration_seconds, engagement_ratio, processing_state FROM audiovisual_library WHERE source_id IN ({placeholders})",
+                    tuple(ev_ids)
+                ).fetchall()
+                supporting_videos = [dict(vr) for vr in v_rows]
+
+            why_it_works = f"{row['summary']} {conf_exp}".strip()
+            failure_modes = {
+                "counterexamples": counterexamples,
+                "anti_pattern_warning": row["anti_pattern_warning"],
+                "limitations": limitations
+            }
+
+            has_why = bool(why_it_works and len(why_it_works) > 10)
+            has_evidence = len(ev_ids) >= 2
+            has_failure_modes = bool(counterexamples or row["anti_pattern_warning"] or limitations)
+            is_truly_validated = (
+                row["classification"] in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion")
+                and has_why
+                and has_evidence
+                and len(counterexamples) >= 1
+                and has_failure_modes
+            )
+
+            return {
+                "knowledge_id": knowledge_id,
+                "title": row["title"],
+                "classification": row["classification"],
+                "target_channel_id": row["target_channel_id"],
+                "confidence_score": row["confidence_score"],
+                "why_it_works": why_it_works,
+                "evidence_video_ids": ev_ids,
+                "supporting_videos": supporting_videos,
+                "failure_modes": failure_modes,
+                "is_truly_validated": is_truly_validated,
+                "classification_history": meta.get("classification_history", [])
+            }
+
+    def query_editorial_rule_for_channel(self, knowledge_id: int, requesting_channel_id: int) -> Dict[str, Any]:
+        """
+        Verifica se um conhecimento pode ser consultado/aplicado pelo canal solicitante (Fase 17 Seção 4).
+        Bloqueia contaminação cruzada entre regras específicas de canais distintos.
+        """
+        with self._get_conn() as conn:
+            row = conn.execute(
+                "SELECT id, niche, target_channel_id, title, classification FROM editorial_knowledge_library WHERE id = ?",
+                (knowledge_id,)
+            ).fetchone()
+            if not row:
+                raise ValueError(f"Conhecimento ID {knowledge_id} não encontrado.")
+
+            owner_ch = row["target_channel_id"]
+            if owner_ch is not None and int(owner_ch) != int(requesting_channel_id):
+                return {
+                    "allowed": False,
+                    "reason": "cross_channel_contamination_blocked",
+                    "knowledge_id": knowledge_id,
+                    "owner_channel_id": owner_ch,
+                    "requesting_channel_id": requesting_channel_id,
+                    "title": row["title"]
+                }
+            return {
+                "allowed": True,
+                "scope": "universal_technical" if owner_ch is None else "channel_specific",
+                "knowledge_id": knowledge_id,
+                "owner_channel_id": owner_ch,
+                "requesting_channel_id": requesting_channel_id,
+                "title": row["title"],
+                "classification": row["classification"]
+            }
+
+    def audit_and_reclassify_phase16_knowledge(self) -> Dict[str, Any]:
+        """
+        Auditoria rigorosa dos aprendizados gerados na Fase 16 (Seção 2 da Fase 17).
+        Verifica sustentação real de engajamento, presença de contraexemplos e ausência de
+        correlações falsas, rebaixando conclusões sem sustentação preservando histórico.
+        """
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            k_rows = cursor.execute("SELECT * FROM editorial_knowledge_library ORDER BY id").fetchall()
+            p16_k = [r for r in k_rows if json.loads(r["metadata"] or "{}").get("pilot_phase") == 16]
+
+            # Carrega métricas reais dos 97 learning_candidates da Fase 16 para checagem empírica
+            vid_rows = cursor.execute(
+                "SELECT source_id, raw_metadata, engagement_ratio, analysis_payload FROM audiovisual_library WHERE id > 43 AND processing_state = 'learning_candidate'"
+            ).fetchall()
+
+            ch_metrics = {}
+            for vr in vid_rows:
+                rm = json.loads(vr["raw_metadata"] or "{}")
+                ch_id = rm.get("channel_id")
+                pay = json.loads(vr["analysis_payload"] or "{}")
+                eng = float(vr["engagement_ratio"] or 0.0)
+                cuts = pay.get("visual_and_editing", {}).get("cuts_count", 0)
+                speech = bool(pay.get("narrative_and_script", {}).get("speech_detected", False))
+                ac_cls = pay.get("audio", {}).get("audio_classification", "")
+                st = ch_metrics.setdefault(ch_id, {"fast": [], "slow": [], "speech": [], "nospeech": [], "valid_a": [], "quiet_a": []})
+                (st["fast"] if cuts >= 4 else st["slow"]).append(eng)
+                (st["speech"] if speech else st["nospeech"]).append(eng)
+                if ac_cls == "VALID_AUDIO":
+                    st["valid_a"].append(eng)
+                elif ac_cls == "QUIET_AUDIO_TRACK":
+                    st["quiet_a"].append(eng)
+
+            avg = lambda xs: (sum(xs) / len(xs)) if xs else 0.0
+            audited_summary = {"total_audited": len(p16_k), "reclassified": [], "confirmed": []}
+
+            for r in p16_k:
+                kid = r["id"]
+                cls_now = r["classification"]
+                meta = json.loads(r["metadata"] or "{}")
+                ev = json.loads(r["evidence_video_ids"] or "[]")
+                counters = meta.get("counterexamples", [])
+                topic = r["knowledge_type"]
+                ch_id = r["target_channel_id"]
+                new_cls = cls_now
+                new_conf = float(r["confidence_score"])
+                just = None
+
+                if cls_now in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion"):
+                    st = ch_metrics.get(ch_id, {})
+                    if topic == "ritmo_de_cortes_dinamico":
+                        # Sem retenção privada do YT Studio e avg_eng global cuts>=4 (1.873%) < cuts<4 (1.941%)
+                        new_cls = "HIPÓTESE"
+                        new_conf = 0.68
+                        just = (
+                            "Reclassificado para HIPÓTESE: cortes >= 4 não apresentaram ganho de engajamento na amostra "
+                            f"(canal {ch_id}: fast={avg(st.get('fast', [])):.2f}% vs slow={avg(st.get('slow', [])):.2f}%) "
+                            "e faltam curvas de retenção privada do YouTube Analytics."
+                        )
+                    elif topic == "padrao_loudness_comercial":
+                        if not counters:
+                            new_cls = "PENDENTE_DE_VALIDACAO"
+                            new_conf = 0.72
+                            just = "Reclassificado para PENDENTE_DE_VALIDACAO: ausência de contraexemplos documentados na criação e natureza técnica universal."
+                        elif avg(st.get("valid_a", [])) <= avg(st.get("quiet_a", [])):
+                            new_cls = "HIPÓTESE"
+                            new_conf = 0.70
+                            just = f"Reclassificado para HIPÓTESE: no canal {ch_id}, VALID_AUDIO ({avg(st.get('valid_a', [])):.2f}%) não superou QUIET_AUDIO_TRACK ({avg(st.get('quiet_a', [])):.2f}%)."
+                    elif topic == "estrutura_narrativa_real":
+                        if not counters:
+                            new_cls = "PENDENTE_DE_VALIDACAO"
+                            new_conf = 0.72
+                            just = "Reclassificado para PENDENTE_DE_VALIDACAO: sem contraexemplos não-falados registrados."
+                        elif avg(st.get("speech", [])) <= avg(st.get("nospeech", [])):
+                            new_cls = "HIPÓTESE"
+                            new_conf = 0.70
+                            just = f"Reclassificado para HIPÓTESE: no canal {ch_id}, vídeos com fala ({avg(st.get('speech', [])):.2f}%) não superaram vídeos musicais sem fala ({avg(st.get('nospeech', [])):.2f}%)."
+
+                if new_cls != cls_now:
+                    history = meta.get("classification_history", [])
+                    history.append({
+                        "previous_classification": cls_now,
+                        "previous_confidence": r["confidence_score"],
+                        "new_classification": new_cls,
+                        "new_confidence": new_conf,
+                        "reason": just,
+                        "audited_at": time.time()
+                    })
+                    meta["classification_history"] = history
+                    meta["audit_phase"] = 17
+                    cursor.execute("""
+                        UPDATE editorial_knowledge_library
+                        SET classification = ?, confidence_score = ?, metadata = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (new_cls, new_conf, json.dumps(meta), kid))
+                    audited_summary["reclassified"].append({"id": kid, "channel_id": ch_id, "from": cls_now, "to": new_cls, "reason": just})
+                else:
+                    audited_summary["confirmed"].append({"id": kid, "channel_id": ch_id, "classification": cls_now})
+
+            conn.commit()
+            return audited_summary
 
     # -------------------------------------------------------------------------
     # 5. MEMÓRIA EDITORIAL ISOLADA PARA OS 5 CANAIS PILOTO
@@ -1949,17 +2225,41 @@ class AudiovisualLearningSystem:
             cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%' AND evidence_count >= 2 AND classification IN ('APRENDIZADO_VALIDADO', 'evidence_based_conclusion')")
             p16_validated_learnings = cursor.fetchone()[0]
 
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%' AND classification = 'OBSERVAÇÃO'")
+            p16_observations = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%' AND classification IN ('HIPÓTESE', 'PENDENTE_DE_VALIDACAO')")
+            p16_hypotheses = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%' AND classification = 'ANTI_PATTERN'")
+            p16_antipatterns = cursor.fetchone()[0]
+
             cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%'")
             p16_total_knowledge = cursor.fetchone()[0]
 
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND analysis_payload LIKE '%\"speech_detected\": true%'")
+            p16_with_transcripts = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND analysis_payload LIKE '%\"speech_detected\": false%'")
+            p16_insufficient_speech = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COALESCE(SUM(CASE WHEN attempts > 1 THEN attempts - 1 ELSE 0 END), 0) FROM task_queue")
+            p16_retries_count = cursor.fetchone()[0]
+
             cursor.execute("SELECT analysis_payload FROM audiovisual_library WHERE id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%'")
             p16_storage_bytes = 0
+            p16_proc_durations = []
             for r_pay in cursor.fetchall():
                 try:
                     pay = json.loads(r_pay[0] or "{}")
                     p16_storage_bytes += pay.get("physical_media", {}).get("file_size_bytes", 0)
+                    t_start = pay.get("metadata", {}).get("processed_at")
+                    t_end = pay.get("editorial_adherence", {}).get("evaluated_at")
+                    if t_start and t_end and t_end >= t_start and (t_end - t_start) < 600:
+                        p16_proc_durations.append(t_end - t_start)
                 except Exception:
                     pass
+            p16_avg_proc_sec = round(sum(p16_proc_durations) / len(p16_proc_durations), 2) if p16_proc_durations else 0.0
 
             # Calcula candidatos selecionados estritamente do banco de dados (checkpoint ou total do lote)
             cursor.execute("SELECT target_goal, error_count, status FROM learning_batch_checkpoints WHERE batch_id = 'pilot_100_fase16'")
@@ -1992,11 +2292,18 @@ class AudiovisualLearningSystem:
                 "editorially_analyzed": p16_editorial_analyzed,
                 "editorially_approved": p16_editorial_approved,
                 "editorially_rejected": p16_editorial_rejected,
+                "videos_with_transcripts": p16_with_transcripts,
+                "videos_insufficient_speech": p16_insufficient_speech,
                 "silent_audio_detected": p16_silent_audio,
                 "learning_candidates": p16_learning_candidates,
                 "validated_learnings": p16_validated_learnings,
+                "observations_count": p16_observations,
+                "hypotheses_count": p16_hypotheses,
+                "anti_patterns_count": p16_antipatterns,
                 "total_knowledge_recorded": p16_total_knowledge,
                 "failures": p16_failed,
+                "retries_count": p16_retries_count,
+                "avg_processing_time_sec": p16_avg_proc_sec,
                 "cost_usd": p16_cost_usd,
                 "storage_used_bytes": p16_storage_bytes,
                 "storage_used_mb": round(p16_storage_bytes / (1024 * 1024), 2),
