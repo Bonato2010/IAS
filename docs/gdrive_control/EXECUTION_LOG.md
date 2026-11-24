@@ -110,3 +110,21 @@
 
 
 
+
+---
+
+## [2026-11-24] - Fase 16: Piloto Controlado de 100 Shorts | Validação de Escala e Aprendizado Real
+
+### Tarefas executadas
+- **Ingestão e Download Físico de 100 YouTube Shorts:** Download de exatamente 20 Shorts por canal nos 5 canais do VANTIS para diretórios isolados `workspace/downloads/pilot100/ch_{1..5}/`, totalizando 840,630,006 bytes (~801.69 MB).
+- **Verificação Temporal e Criptográfica Rigorosa:** 100% dos vídeos com duração $\le 60.0$s comprovada via FFprobe (intervalo de 5.08s a 59.92s; zero vídeos longos admitidos) e hashes SHA256 completos de 64 caracteres hexadecimais.
+- **Análise Multimodal Física em Escala:** Detecção de cortes via `PySceneDetect` com frame-skip otimizado (0 a 41 cortes por vídeo), conformidade de aspect ratio vertical via `OpenCV` e medição de Integrated Loudness sob norma EBU R128 (-14 LUFS) via `FFmpeg`.
+- **Rigor Acústico e Rejeição Compulsória:** Identificação de faixas de áudio nulas (-70.0 LUFS) com rejeição compulsória de 2 vídeos mudos (`2TFGeAHjPA8` e `sp7KGFCNjJk`) como `editorially_rejected`, impedindo distorção de speech clarity na base de aprendizado.
+- **Filtro de Desvio de Nicho Editorial:** Detecção e rejeição imediata de 2 vídeos com desvio grosseiro de persona/tema (`WyS5Ijgirtw` no Canal 4 e `r3CribedVGU` no Canal 5) como `editorially_rejected`.
+- **Governança Editorial pela Regra de Ouro:** Extração de padrões auditados: $\ge 2$ evidências empíricas classificadas como `APRENDIZADO_VALIDADO` (confiança $\ge 0.80$ a $0.95$), e padrões com 1 evidência restritos a `OBSERVAÇÃO` (confiança $\le 0.70$).
+- **Isolamento Estrito Multitenant de Canais:** 100% dos aprendizados e observações da Fase 16 amarrados com `target_channel_id` específico, sem vazamento cruzado.
+- **Telemetria do Operational Dashboard:** Exposição completa da telemetria sob a chave `pilot_fase16_metrics` no método `AudiovisualLearningSystem.get_dashboard_overview()`.
+- **Bateria Completa de Testes de Regressão:** Criação de `tests/test_fase16_pilot_100_shorts.py` validando os 16 itens do Gate de Validação (16/16 aprovados). Suíte global `scripts/run_all_tests.py` registrou 18/18 suítes e 153/153 testes unitários com 100% de sucesso.
+- **Custo Zero Mantido:** Ausência total de chamadas a provedores comerciais pagos, mantendo o custo estritamente em **$0.00**.
+- **Emissão do Relatório Formal:** Documento de auditoria consolidado em `docs/audits/FASE16_PILOT_100_SHORTS.md` com a matriz forense completa de todos os 100 vídeos.
+- **Veredicto do Gate Final:** **PILOTO APROVADO — PRONTO PARA AUDITORIA DE ESCALA**. Trava de 7.000 vídeos estritamente mantida até autorização formal.

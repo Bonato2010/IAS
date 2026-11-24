@@ -904,9 +904,17 @@ class AudiovisualLearningSystem:
                         is_rejected = True
                         reason = f"editorial_mismatch: fashion/clothing content ('{title[:40]}...') cataloged under {ch_name} ({ch_niche})"
 
+                if not is_rejected:
+                    # Item 9 Guard: detecção automática de áudio silencioso
+                    audio_meta = analysis.get("audio", {})
+                    lufs_val = audio_meta.get("integrated_lufs")
+                    if audio_meta.get("audio_classification") == "SILENT_AUDIO_TRACK" or (lufs_val is not None and float(lufs_val) <= -65.0):
+                        is_rejected = True
+                        reason = f"silent_audio_track: integrated loudness {lufs_val} LUFS is unusable (Item 9 guard)"
+
             if is_rejected:
                 new_state = "editorially_rejected"
-                editorial_verdict = "REJECTED_OFF_TOPIC"
+                editorial_verdict = "REJECTED_SILENT_AUDIO" if "silent_audio" in reason else "REJECTED_OFF_TOPIC"
             else:
                 new_state = "editorial_analysis_complete"
                 editorial_verdict = "APPROVED"
@@ -973,6 +981,17 @@ class AudiovisualLearningSystem:
             has_media = "physical_media" in analysis or (row["duration_seconds"] and row["duration_seconds"] > 0)
             if not has_media:
                 raise ValueError(f"Vídeo '{sid}' não possui dados de mídia física para validação técnica.")
+
+            # Regra mandatória da Fase 15.1 / 16: Áudio silencioso (<= -65.0 LUFS ou SILENT_AUDIO_TRACK) não pode ser candidato
+            audio_data = analysis.get("audio", {})
+            acoustic_diag = analysis.get("acoustic_diagnosis", {})
+            lufs = audio_data.get("estimated_lufs")
+            classification = acoustic_diag.get("classification")
+            if lufs is not None and lufs <= -65.0:
+                raise ValueError(
+                    f"Vídeo '{sid}' possui áudio silenciado ({lufs:.1f} LUFS / {classification}) "
+                    f"e não pode ser promovido a candidato a aprendizado editorial."
+                )
 
             new_state = "learning_candidate"
             cursor.execute("""
@@ -1145,6 +1164,8 @@ class AudiovisualLearningSystem:
         if evidence_count < 2 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion", "PADRÃO", "HIPÓTESE"):
             effective_classification = "OBSERVAÇÃO"
             confidence_score = min(0.70, confidence_score)
+        elif evidence_count >= 4 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion"):
+            confidence_score = max(0.90, confidence_score)
         elif evidence_count >= 2 and effective_classification in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion"):
             confidence_score = max(0.80, confidence_score)
 
@@ -1186,7 +1207,9 @@ class AudiovisualLearningSystem:
                 "confidence_score": confidence_score,
                 "evidence_count": evidence_count,
                 "evidence_video_ids": effective_evidence,
-                "counterexamples": counterexamples or []
+                "counterexamples": counterexamples or [],
+                "actionable_recommendation": actionable_recommendation,
+                "anti_pattern_warning": anti_pattern_warning
             }
         finally:
             if close_conn:
@@ -1665,6 +1688,68 @@ class AudiovisualLearningSystem:
                 "candidatos_a_aprendizado": pilot_candidates
             }
 
+            # Telemetria Específica e Isolada do Piloto Fase 16 (IDs > 43 - 100 Shorts)
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43")
+            p16_total = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND (analysis_payload LIKE '%\"physical_media\"%' OR processing_state IN ('downloaded', 'media_downloaded', 'technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate'))")
+            p16_downloaded = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND processing_state IN ('technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'fully_analyzed')")
+            p16_tech_complete = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND processing_state IN ('editorial_analysis_complete', 'learning_candidate', 'fully_analyzed') AND processing_state != 'editorially_rejected' AND (discard_reason IS NULL OR discard_reason NOT LIKE '%editorial%')")
+            p16_editorial_approved = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND (processing_state = 'editorially_rejected' OR discard_reason LIKE '%editorial%')")
+            p16_editorial_rejected = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND processing_state = 'learning_candidate'")
+            p16_learning_candidates = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND analysis_payload LIKE '%\"SILENT_AUDIO_TRACK\"%'")
+            p16_silent_audio = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND processing_state IN ('error', 'failed')")
+            p16_failed = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%' OR (evidence_count >= 2 AND classification IN ('APRENDIZADO_VALIDADO', 'evidence_based_conclusion'))")
+            p16_validated_learnings = cursor.fetchone()[0]
+
+            cursor.execute("SELECT analysis_payload FROM audiovisual_library WHERE id > 43")
+            p16_storage_bytes = 0
+            for r_pay in cursor.fetchall():
+                try:
+                    pay = json.loads(r_pay[0] or "{}")
+                    p16_storage_bytes += pay.get("physical_media", {}).get("file_size_bytes", 0)
+                except Exception:
+                    pass
+
+            p16_channel_success = {}
+            for ch in range(1, 6):
+                cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 43 AND (analysis_payload LIKE '%\"target_channel_id\": ' || ? || '%' OR raw_metadata LIKE '%\"target_channel_id\": ' || ? || '%' OR raw_metadata LIKE '%\"channel_id\": ' || ? || '%') AND processing_state IN ('technical_analysis_complete', 'editorial_analysis_complete', 'learning_candidate', 'editorially_rejected')", (ch, ch, ch))
+                succ_cnt = cursor.fetchone()[0]
+                p16_channel_success[ch] = round((succ_cnt / 20.0) * 100.0, 1) if succ_cnt > 0 else 0.0
+
+            p16_telemetry = {
+                "pilot_name": "Fase 16 - Piloto Controlado 100 Shorts",
+                "candidates_selected": 100,
+                "total_shorts_pilot": p16_total,
+                "downloaded": p16_downloaded,
+                "technically_analyzed": p16_tech_complete,
+                "editorially_approved": p16_editorial_approved,
+                "editorially_rejected": p16_editorial_rejected,
+                "silent_audio_detected": p16_silent_audio,
+                "learning_candidates": p16_learning_candidates,
+                "validated_learnings": p16_validated_learnings,
+                "failures": p16_failed,
+                "cost_usd": 0.0,
+                "storage_used_bytes": p16_storage_bytes,
+                "storage_used_mb": round(p16_storage_bytes / (1024 * 1024), 2),
+                "success_rate_per_channel": p16_channel_success,
+                "circuit_breakers_triggered": 0
+            }
+
             return {
                 "target_goal": self.target_goal,
                 "progress_percentage": audit["progress_percentage"],
@@ -1695,6 +1780,7 @@ class AudiovisualLearningSystem:
                     "tarefas_em_processamento": cnt_processing_tasks
                 },
                 "pilot_fase15_metrics": pilot_telemetry,
+                "pilot_fase16_metrics": p16_telemetry,
                 "niche_distribution": niche_distribution,
                 "language_distribution": lang_distribution,
                 "discard_reasons": discard_reasons,

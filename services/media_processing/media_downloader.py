@@ -60,6 +60,7 @@ class MediaDownloader:
 
         cmd = [
             sys.executable, "-m", "yt_dlp",
+            "--js-runtimes", "node",
             "--no-playlist",
             "--max-filesize", "100M",
             "--match-filter", "duration <= 60 & !is_live",

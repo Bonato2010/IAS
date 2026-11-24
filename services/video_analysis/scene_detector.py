@@ -41,7 +41,7 @@ class SceneDetectorService:
         scene_manager = SceneManager()
         scene_manager.add_detector(ContentDetector(threshold=self.threshold))
 
-        scene_manager.detect_scenes(video)
+        scene_manager.detect_scenes(video, frame_skip=2)
         scene_list = scene_manager.get_scene_list()
 
         scenes = []

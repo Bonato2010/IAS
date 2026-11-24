@@ -30,7 +30,8 @@ database/*.sqlite3
 *.sqlite3
 
 # Mídias e Arquivos Temporários de Vídeo/Áudio (Google Drive 5 TB é o repositório oficial)
-workspace/downloads/*
+workspace/downloads/
+workspace/downloads/**
 workspace/clips/*.mp4
 workspace/clips/*.wav
 workspace/clips/*.ass
