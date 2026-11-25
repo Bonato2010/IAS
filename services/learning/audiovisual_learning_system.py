@@ -1637,11 +1637,13 @@ class AudiovisualLearningSystem:
             ).fetchall()
 
             ch_metrics = {}
+            vid_traction = {}
             for vr in vid_rows:
                 rm = json.loads(vr["raw_metadata"] or "{}")
                 ch_id = rm.get("channel_id")
                 pay = json.loads(vr["analysis_payload"] or "{}")
                 eng = float(vr["engagement_ratio"] or 0.0)
+                vid_traction[vr["source_id"]] = {"eng": eng, "views": int(pay.get("views_count", 0) or 0)}
                 cuts = pay.get("visual_and_editing", {}).get("cuts_count", 0)
                 speech = bool(pay.get("narrative_and_script", {}).get("speech_detected", False))
                 ac_cls = pay.get("audio", {}).get("audio_classification", "")
@@ -1652,6 +1654,10 @@ class AudiovisualLearningSystem:
                     st["valid_a"].append(eng)
                 elif ac_cls == "QUIET_AUDIO_TRACK":
                     st["quiet_a"].append(eng)
+
+            # Carrega views reais direto da coluna views_count
+            for vr in cursor.execute("SELECT source_id, views_count, engagement_ratio FROM audiovisual_library WHERE id > 43").fetchall():
+                vid_traction[vr["source_id"]] = {"eng": float(vr["engagement_ratio"] or 0.0), "views": int(vr["views_count"] or 0)}
 
             avg = lambda xs: (sum(xs) / len(xs)) if xs else 0.0
             audited_summary = {"total_audited": len(p16_k), "reclassified": [], "confirmed": []}
@@ -1670,8 +1676,12 @@ class AudiovisualLearningSystem:
 
                 if cls_now in ("APRENDIZADO_VALIDADO", "evidence_based_conclusion"):
                     st = ch_metrics.get(ch_id, {})
+                    # Quantas evidências têm tração pública real (views >= 100 e engajamento > 0)
+                    meaningful_ev = [
+                        eid for eid in ev
+                        if vid_traction.get(eid, {}).get("views", 0) >= 100 and vid_traction.get(eid, {}).get("eng", 0.0) > 0.0
+                    ]
                     if topic == "ritmo_de_cortes_dinamico":
-                        # Sem retenção privada do YT Studio e avg_eng global cuts>=4 (1.873%) < cuts<4 (1.941%)
                         new_cls = "HIPÓTESE"
                         new_conf = 0.68
                         just = (
@@ -1697,6 +1707,14 @@ class AudiovisualLearningSystem:
                             new_cls = "HIPÓTESE"
                             new_conf = 0.70
                             just = f"Reclassificado para HIPÓTESE: no canal {ch_id}, vídeos com fala ({avg(st.get('speech', [])):.2f}%) não superaram vídeos musicais sem fala ({avg(st.get('nospeech', [])):.2f}%)."
+                        elif len(st.get("nospeech", [])) < 3 or len(meaningful_ev) < 2:
+                            new_cls = "HIPÓTESE"
+                            new_conf = 0.72
+                            just = (
+                                f"Reclassificado para HIPÓTESE (Auditoria 17.1): grupo de controle sem fala insuficiente "
+                                f"(n={len(st.get('nospeech', []))}) ou evidências com tração real insuficiente "
+                                f"({len(meaningful_ev)}/{len(ev)} com >=100 views e eng>0%)."
+                            )
 
                 if new_cls != cls_now:
                     history = meta.get("classification_history", [])
@@ -2152,11 +2170,16 @@ class AudiovisualLearningSystem:
             cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE processing_state IN ('error', 'failed')")
             cnt_failed = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM task_queue WHERE status = 'pending'")
+            cursor.execute("SELECT COUNT(*) FROM task_queue WHERE status IN ('pending', 'QUEUED', 'RETRYING')")
             cnt_pending_tasks = cursor.fetchone()[0]
 
-            cursor.execute("SELECT COUNT(*) FROM task_queue WHERE status = 'processing'")
+            cursor.execute("SELECT COUNT(*) FROM task_queue WHERE status IN ('processing', 'RUNNING')")
             cnt_processing_tasks = cursor.fetchone()[0]
+
+            cursor.execute("""
+                SELECT status, COUNT(*) as cnt FROM task_queue GROUP BY status
+            """)
+            queue_health = {r["status"]: r["cnt"] for r in cursor.fetchall()}
 
             # Telemetria Específica e Isolada do Piloto Fase 15 (IDs > 23 - 20 Shorts)
             cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE id > 23")
@@ -2237,6 +2260,13 @@ class AudiovisualLearningSystem:
             cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%'")
             p16_total_knowledge = cursor.fetchone()[0]
 
+            p16_counterexamples_total = 0
+            for kr in cursor.execute("SELECT metadata FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 16%'").fetchall():
+                try:
+                    p16_counterexamples_total += len(json.loads(kr[0] or "{}").get("counterexamples", []))
+                except Exception:
+                    pass
+
             cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE (id > 43 OR raw_metadata LIKE '%\"pilot_phase\": 16%') AND analysis_payload LIKE '%\"speech_detected\": true%'")
             p16_with_transcripts = cursor.fetchone()[0]
 
@@ -2300,9 +2330,11 @@ class AudiovisualLearningSystem:
                 "observations_count": p16_observations,
                 "hypotheses_count": p16_hypotheses,
                 "anti_patterns_count": p16_antipatterns,
+                "counterexamples_count": p16_counterexamples_total,
                 "total_knowledge_recorded": p16_total_knowledge,
                 "failures": p16_failed,
                 "retries_count": p16_retries_count,
+                "queue_health": queue_health,
                 "avg_processing_time_sec": p16_avg_proc_sec,
                 "cost_usd": p16_cost_usd,
                 "storage_used_bytes": p16_storage_bytes,

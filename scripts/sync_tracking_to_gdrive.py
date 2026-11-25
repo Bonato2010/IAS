@@ -25,7 +25,8 @@ ADDITIONAL_DOCS = [
     ("FASE15_REAL_SHORTS_PILOT.md", BASE_DIR / "docs" / "audits" / "FASE15_REAL_SHORTS_PILOT.md"),
     ("FASE15_1_FORENSIC_AUDIT.md", BASE_DIR / "docs" / "audits" / "FASE15_1_FORENSIC_AUDIT.md"),
     ("FASE16_PILOT_100_SHORTS.md", BASE_DIR / "docs" / "audits" / "FASE16_PILOT_100_SHORTS.md"),
-    ("FASE17_SCALE_READINESS_AUDIT.md", BASE_DIR / "docs" / "audits" / "FASE17_SCALE_READINESS_AUDIT.md")
+    ("FASE17_SCALE_READINESS_AUDIT.md", BASE_DIR / "docs" / "audits" / "FASE17_SCALE_READINESS_AUDIT.md"),
+    ("FASE17_1_INDEPENDENT_SCALE_AUDIT.md", BASE_DIR / "docs" / "audits" / "FASE17_1_INDEPENDENT_SCALE_AUDIT.md")
 ]
 
 def sync_tracking_to_gdrive():

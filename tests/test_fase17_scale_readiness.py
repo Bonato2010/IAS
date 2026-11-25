@@ -92,9 +92,11 @@ class TestFase17ScaleReadiness(unittest.TestCase):
         res = ev.evaluate_ab(holdout_videos=holdout)
         self.assertEqual(res["holdout_count"], 2)
         self.assertEqual(res["overlap_with_training"], 0)
+        self.assertEqual(res["statistical_significance"], "NOT_STATISTICALLY_PROVEN_SMALL_SAMPLE_N20")
         self.assertEqual(res["mode_a_baseline"]["off_topic_flagged"], 0)
         self.assertEqual(res["mode_b_with_phase16"]["off_topic_flagged"], 1)
         self.assertEqual(res["mode_b_with_phase16"]["silent_audio_flagged"], 1)
+        self.assertLessEqual(res["mode_b_with_phase16"]["predicted_high_engagement_total"], 1)
         self.assertIn("unimproved_or_limited_areas", res["honest_assessment"])
 
     def test_03_cross_channel_isolation_blocks_contamination(self):
@@ -186,19 +188,23 @@ class TestFase17ScaleReadiness(unittest.TestCase):
             views = 1500 if i < 12 else (80_000 if i < 28 else 2_000_000)
             pool.append({
                 "id": f"sel_{i}",
+                "title": f"Titulo Unico {i}",
                 "url": f"https://www.youtube.com/shorts/sel_{i}",
                 "duration_seconds": 30.0,
                 "channel_id": 1,
                 "views": views,
                 "is_available": True,
             })
-        pool.append({"id": "sel_0", "url": "https://www.youtube.com/shorts/sel_0", "duration_seconds": 30.0, "channel_id": 1})
-        pool.append({"id": "too_long", "url": "https://www.youtube.com/shorts/too_long", "duration_seconds": 120.0, "channel_id": 1})
-        pool.append({"id": "unavail", "url": "https://www.youtube.com/shorts/unavail", "duration_seconds": 25.0, "channel_id": 1, "is_available": False})
+        pool.append({"id": "sel_0", "title": "Titulo Unico 0", "url": "https://www.youtube.com/shorts/sel_0", "duration_seconds": 30.0, "channel_id": 1})
+        pool.append({"id": "sel_dup_fp", "title": "Titulo Unico 0", "url": "https://www.youtube.com/shorts/sel_dup_fp", "duration_seconds": 30.0, "channel_id": 1})
+        pool.append({"id": "too_long", "title": "Longo", "url": "https://www.youtube.com/shorts/too_long", "duration_seconds": 120.0, "channel_id": 1})
+        pool.append({"id": "unavail", "title": "Indisp", "url": "https://www.youtube.com/shorts/unavail", "duration_seconds": 25.0, "channel_id": 1, "is_available": False})
 
         res = planner.plan_stratified_selection(pool, target_per_channel=20)
         self.assertEqual(res["selected_count"], 20)
-        self.assertEqual(res["rejected_count"], 3)
+        self.assertEqual(res["rejected_count"], 4)
+        self.assertTrue(all("inclusion_rationale" in s for s in res["selected"]))
+        self.assertTrue(any(r["reason"] == "duplicate_title_duration_fingerprint" for r in res["rejected"]))
         self.assertGreater(res["tier_distribution"]["emerging"], 0)
         self.assertGreater(res["tier_distribution"]["mid_tier"], 0)
         self.assertGreater(res["tier_distribution"]["viral"], 0)
@@ -256,6 +262,7 @@ class TestFase17ScaleReadiness(unittest.TestCase):
             "videos_with_transcripts", "videos_insufficient_speech",
             "learning_candidates", "validated_learnings",
             "observations_count", "hypotheses_count", "anti_patterns_count",
+            "counterexamples_count", "queue_health",
             "editorially_rejected", "failures", "retries_count",
             "storage_used_mb", "avg_processing_time_sec", "cost_usd",
         ]

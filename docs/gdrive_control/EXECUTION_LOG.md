@@ -139,3 +139,15 @@
 - **Proteção Contra Aprendizado Defeituoso & Observabilidade:** Deduplicação em `record_knowledge()`, bloqueio de evidência corrompida, guarda de contraexemplos, contrato `explain_knowledge()`, e 17+ indicadores reais no dashboard (`web/static/index.html`).
 - **Regressão Completa:** `tests/test_fase17_scale_readiness.py` (10/10) e `scripts/run_all_tests.py` com **19/19 suítes / 170/170 testes aprovados (100.0%, exit code 0)**.
 - **Relatório e Classificação Final:** Emitido `docs/audits/FASE17_SCALE_READINESS_AUDIT.md` com veredicto **`READY_WITH_RESERVATIONS`**. Processamento dos 7.000 vídeos mantido bloqueado.
+
+---
+
+## [2026-11-24] - Fase 17.1: Auditoria Forense Independente de Prontidão para Escala
+
+### Tarefas executadas
+- **Reauditoria dos 23 Registros da Fase 16 (`audit_and_reclassify_phase16_knowledge`):** Endurecimento dos critérios de tração (`>= 2` evidências com `views >= 100` e `engajamento > 0%` e `>= 3` vídeos no grupo de controle sem fala) reclassificando os IDs `116`, `121` e `125` para `HIPÓTESE` (`0 APRENDIZADO_VALIDADO`, `11 HIPÓTESE`, `4 PENDENTE_DE_VALIDACAO`, `5 OBSERVAÇÃO`, `3 ANTI_PATTERN`).
+- **Correção do Teste A/B em Holdout (`editorial_utility_evaluator.py`):** Bloqueio de `b_pred_high` em vídeos silenciosos (`-70.0 LUFS`) ou off-topic, e inclusão explícita de `statistical_significance = "NOT_STATISTICALLY_PROVEN_SMALL_SAMPLE_N20"` (Modo A 3/9 = 33.3% vs Modo B 8/17 = 47.1%, `off_topic_flagged=1`, `silent_audio_flagged=3`, `anti_pattern_warnings_emitted=14`).
+- **Correção de Observabilidade e Fila (`audiovisual_learning_system.py`, `web/static/index.html`):** Alinhamento de `task_queue` para `'QUEUED'`, `'RETRYING'`, `'RUNNING'` e exposição de `counterexamples_count` (`25`) e `queue_health` no dashboard e na UI.
+- **Deduplicação e Rastreabilidade (`scale_selector.py`):** Deduplicação por fingerprint título+duração (`duplicate_title_duration_fingerprint`) e `inclusion_rationale` por candidato.
+- **Regressão Completa:** Adição de asserções em `tests/test_fase17_scale_readiness.py` e execução integral de `scripts/run_all_tests.py` com **19/19 suítes / 170/170 testes aprovados (100.0%, exit code 0, 594.90s)**.
+- **Relatório e Próximo Passo:** Emitido `docs/audits/FASE17_1_INDEPENDENT_SCALE_AUDIT.md` com veredito **`READY_WITH_RESERVATIONS`**, propondo lote controlado de **250 vídeos** (NÃO executado; 7.000 bloqueados). Custo mantido em **US$ 0,00**.

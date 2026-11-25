@@ -120,6 +120,7 @@ class ScaleSelectionPlanner:
         deduplicação estrita e atribuição determinística de split train/validation/test (70/15/15).
         """
         seen = set(existing_ids or set())
+        seen_fingerprints = set()
         selected: List[Dict[str, Any]] = []
         rejected: List[Dict[str, Any]] = []
 
@@ -130,9 +131,14 @@ class ScaleSelectionPlanner:
             dur = float(item.get("duration_seconds") or item.get("metadata_duration") or 0.0)
             url = item.get("url") or item.get("original_url") or ""
             is_available = item.get("is_available", True)
+            norm_title = " ".join(str(item.get("title") or "").lower().split())
+            fp = f"{norm_title}|{round(dur, 1)}" if norm_title else None
 
             if not vid or vid in seen:
                 rejected.append({"id": vid, "reason": "duplicate_or_missing_id"})
+                continue
+            if fp and fp in seen_fingerprints:
+                rejected.append({"id": vid, "reason": "duplicate_title_duration_fingerprint"})
                 continue
             if not url.startswith("http"):
                 rejected.append({"id": vid, "reason": "invalid_url"})
@@ -145,6 +151,8 @@ class ScaleSelectionPlanner:
                 continue
 
             seen.add(vid)
+            if fp:
+                seen_fingerprints.add(fp)
             ch_id = int(item.get("channel_id") or 1)
             tier = self.classify_popularity_tier(item.get("views", 0))
             enriched = {**item, "id": vid, "popularity_tier": tier}
@@ -189,6 +197,10 @@ class ScaleSelectionPlanner:
                 else:
                     split = "test"
                 it["dataset_split"] = split
+                it["inclusion_rationale"] = (
+                    f"channel={ch_id}, tier={it['popularity_tier']}, split={split}, "
+                    f"duration={float(it.get('duration_seconds') or it.get('metadata_duration') or 0):.1f}s"
+                )
                 tier_counts[it["popularity_tier"]] += 1
                 split_counts[split] += 1
                 selected.append(it)

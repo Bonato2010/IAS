@@ -151,9 +151,17 @@ class EditorialUtilityEvaluator:
             if b_warnings:
                 b_metrics["anti_pattern_warnings_emitted"] += 1
 
-            # Predição de engajamento em B usa apenas regra validada do canal (ex: fala em Ch3/Ch4/Ch5) quando existe
-            has_validated_speech_rule = any(kr["knowledge_type"] == "estrutura_narrativa_real" and kr["classification"] == "APRENDIZADO_VALIDADO" for kr in ch_rules)
-            b_pred_high = has_speech if has_validated_speech_rule else (not b_silent and not b_off_topic)
+            # Predição de engajamento em B NUNCA aprova vídeo silencioso ou fora do nicho
+            has_validated_speech_rule = any(
+                kr["knowledge_type"] == "estrutura_narrativa_real" and kr["classification"] == "APRENDIZADO_VALIDADO"
+                for kr in ch_rules
+            )
+            if b_silent or b_off_topic:
+                b_pred_high = False
+            elif has_validated_speech_rule:
+                b_pred_high = has_speech
+            else:
+                b_pred_high = True
             if b_pred_high:
                 b_metrics["predicted_high_engagement_total"] += 1
                 if eng >= 1.5:
@@ -179,6 +187,7 @@ class EditorialUtilityEvaluator:
         return {
             "holdout_count": len(videos),
             "overlap_with_training": len(overlap),
+            "statistical_significance": "NOT_STATISTICALLY_PROVEN_SMALL_SAMPLE_N20",
             "mode_a_baseline": {**a_metrics, "high_engagement_precision_pct": a_prec},
             "mode_b_with_phase16": {**b_metrics, "high_engagement_precision_pct": b_prec},
             "honest_assessment": {
