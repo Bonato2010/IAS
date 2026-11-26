@@ -1627,6 +1627,18 @@ def render_production_package(package_id: int, payload: Optional[Dict[str, Any]]
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+@app.post("/api/production/renders/{job_id}/review")
+def review_render_job(job_id: int, payload: Dict[str, Any]):
+    try:
+        return _get_renderer().submit_human_review(
+            job_id=job_id,
+            decision=str(payload.get("decision", "")),
+            notes=str(payload.get("notes", "")),
+            defects=payload.get("defects") or [],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"
 static_dir.mkdir(parents=True, exist_ok=True)

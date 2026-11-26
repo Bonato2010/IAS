@@ -2749,10 +2749,12 @@
         box.innerHTML = pkgs.map(p => `
           <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.06);">
             <span><strong>#${p.id} v${p.version}</strong> [Ch${p.channel_id}] ${p.theme} — <span class="badge">${p.status}</span></span>
-            <span style="display:flex; gap:6px;">
+            <span style="display:flex; gap:6px; flex-wrap:wrap;">
               <button class="btn btn-sm" onclick="viewProdPackage(${p.id})">Ver</button>
               <button class="btn btn-sm" onclick="duplicateProdPackage(${p.id})">Duplicar</button>
               <button class="btn btn-sm btn-primary" onclick="approveProdPackage(${p.id})">Aprovar</button>
+              <button class="btn btn-sm" onclick="requestChangesProdPackage(${p.id})">Alterações</button>
+              <button class="btn btn-sm btn-danger" onclick="rejectProdPackage(${p.id})">Rejeitar</button>
               <button class="btn btn-sm" onclick="renderProdPackage(${p.id})">Renderizar</button>
             </span>
           </div>`).join('');
@@ -2775,14 +2777,29 @@
       const res = await fetch(`/api/production/packages/${id}`);
       const p = await res.json();
       const pkg = p.package || {};
+      const scenes = pkg.audiovisual_plan?.scenes || [];
+      const recs = pkg.editorial_recommendations || pkg.recommendations || [];
+      const mems = pkg.applied_memories || [];
       box.style.display = 'block';
       box.innerHTML = `<strong>Pacote #${p.id} (v${p.version} | ${p.status}) — ${p.channel_name}</strong><br>
+        <div style="margin:6px 0; display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn btn-sm btn-primary" onclick="approveProdPackage(${p.id})">Aprovar para Produção</button>
+          <button class="btn btn-sm" onclick="requestChangesProdPackage(${p.id})">Solicitar Alterações</button>
+          <button class="btn btn-sm btn-danger" onclick="rejectProdPackage(${p.id})">Rejeitar Pacote</button>
+        </div>
         <em>Hook:</em> <input id="edit-hook-${p.id}" class="form-input" style="width:100%; margin:4px 0;" value="${(pkg.script?.hook || '').replace(/"/g, '&quot;')}" />
         <button class="btn btn-sm" onclick="saveHookEdit(${p.id})">Salvar Edição Manual</button><br><br>
         <strong>Desenvolvimento:</strong> ${pkg.script?.development || ''}<br>
-        <strong>Cenas (${pkg.audiovisual_plan?.total_scenes || 0}):</strong> ${(pkg.audiovisual_plan?.scenes || []).map(s => `[${s.scene_index}: ${s.stage} ${s.estimated_duration_sec}s (${s.media_asset_status})]`).join(' ')}<br>
+        <strong>Clímax / Virada:</strong> ${pkg.script?.turning_point || pkg.script?.climax || '—'}<br>
+        <strong>CTA:</strong> ${pkg.script?.cta || '—'}<br>
+        <strong>Narração Completa:</strong> <div style="opacity:0.9; margin:4px 0 8px 0;">${pkg.audio_plan?.narration_text || '—'}</div>
+        <strong>Cenas & Assets Necessários (${scenes.length}):</strong>
+        <ul style="margin:4px 0 8px 18px;">
+          ${scenes.map(s => `<li><strong>Cena ${s.scene_index} (${s.stage}, ${s.estimated_duration_sec}s)</strong> — <span class="badge">${s.media_asset_status || 'ASSET_NEEDED'}</span> ${s.asset_path ? `[<code>${s.asset_path}</code>]` : ''} : ${s.visual_description || ''}</li>`).join('')}
+        </ul>
         <strong>Áudio:</strong> ${pkg.audio_plan?.tone || ''} | ${pkg.audio_plan?.music_ambience_royalty_free || ''}<br>
-        <strong>Memórias Aplicadas:</strong> ${(pkg.applied_memories || []).map(m => `#${m.knowledge_id} (${m.classification})`).join(', ') || 'Nenhuma'}`;
+        <strong>Recomendações Editoriais:</strong> ${Array.isArray(recs) && recs.length ? recs.join(' • ') : (typeof recs === 'string' ? recs : 'Nenhuma adicional')}<br>
+        <strong>Memórias Aplicadas:</strong> ${mems.map(m => `#${m.knowledge_id} (${m.classification})`).join(', ') || 'Nenhuma'}`;
     }
     async function saveHookEdit(id) {
       const hook = document.getElementById(`edit-hook-${id}`)?.value || '';
@@ -2799,9 +2816,30 @@
     async function approveProdPackage(id) {
       await fetch(`/api/production/packages/${id}/status`, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({status: 'APPROVED_FOR_PRODUCTION', reason: 'Aprovado no dashboard'})
+        body: JSON.stringify({status: 'APPROVED_FOR_PRODUCTION', reason: 'Aprovado explicitamente no dashboard'})
       });
       await loadProdPackages();
+      await viewProdPackage(id);
+    }
+    async function requestChangesProdPackage(id) {
+      const reason = prompt('Descreva as alterações solicitadas para este pacote:');
+      if (!reason || !reason.trim()) return;
+      await fetch(`/api/production/packages/${id}/status`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: 'CHANGES_REQUESTED', reason: reason.trim()})
+      });
+      await loadProdPackages();
+      await viewProdPackage(id);
+    }
+    async function rejectProdPackage(id) {
+      const reason = prompt('Informe o motivo da rejeição deste pacote:');
+      if (!reason || !reason.trim()) return;
+      await fetch(`/api/production/packages/${id}/status`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: 'REJECTED', reason: reason.trim()})
+      });
+      await loadProdPackages();
+      await viewProdPackage(id);
     }
     async function renderProdPackage(id) {
       const res = await fetch(`/api/production/packages/${id}/render`, {
@@ -2809,6 +2847,16 @@
       });
       const job = await res.json();
       if (job.status === 'BLOCKED') alert(job.error_message || 'Renderização bloqueada.');
+      await loadRenderJobs();
+    }
+    async function submitRenderReview(jobId, decision) {
+      const checks = Array.from(document.querySelectorAll(`.defect-chk-${jobId}:checked`)).map(el => el.value);
+      const notes = (document.getElementById(`review-notes-${jobId}`)?.value || '').trim();
+      const res = await fetch(`/api/production/renders/${jobId}/review`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({decision, notes, defects: checks})
+      });
+      if (!res.ok) { const err = await res.json(); alert(err.detail || 'Erro na revisão.'); return; }
       await loadRenderJobs();
     }
     async function loadRenderJobs() {
@@ -2819,10 +2867,21 @@
         const data = await res.json();
         const jobs = data.jobs || [];
         if (!jobs.length) { box.innerText = 'Nenhuma renderização executada ainda.'; return; }
+        const defectLabels = ['narration','pronunciation','sync','subtitles','cuts','images','rhythm','audiovisual_quality'];
         box.innerHTML = jobs.map(j => `
-          <div style="padding:5px 6px; border-bottom:1px solid rgba(255,255,255,0.05);">
+          <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.08);">
             <strong>Job #${j.id}</strong> (Pkg #${j.package_id} Ch${j.channel_id}) — <span class="badge">${j.status}</span>
-            ${j.output_mp4_path ? `| ${j.duration_sec}s | ${j.resolution} | ${j.measured_lufs} LUFS | <a href="/api/production/renders/${j.id}/file" target="_blank">Abrir MP4</a>` : `| ${j.error_message || ''}`}
+            ${j.output_mp4_path ? `| ${j.duration_sec}s | ${j.resolution} | ${j.measured_lufs} LUFS | SHA256: <code>${(j.sha256||'').slice(0,12)}...</code> | <a href="/api/production/renders/${j.id}/file" target="_blank">Abrir MP4</a>
+            <div style="margin-top:6px;"><video controls preload="metadata" style="max-height:240px; border-radius:6px;" src="/api/production/renders/${j.id}/file"></video></div>` : `| ${j.error_message || ''}`}
+            ${j.status === 'READY_FOR_REVIEW' || j.status === 'CHANGES_REQUESTED' ? `
+              <div style="margin-top:6px; font-size:12px;">
+                <div>Defeitos observados: ${defectLabels.map(d => `<label style="margin-right:8px;"><input type="checkbox" class="defect-chk-${j.id}" value="${d}"> ${d}</label>`).join('')}</div>
+                <input id="review-notes-${j.id}" class="form-input" style="width:65%; margin:4px 0;" placeholder="Notas da revisão humana (pronúncia, corte, legenda, ritmo...)" value="${(j.review_notes || '').replace(/"/g, '&quot;')}" />
+                <button class="btn btn-sm btn-primary" onclick="submitRenderReview(${j.id}, 'APPROVE_FINAL')">Aprovar Final</button>
+                <button class="btn btn-sm" onclick="submitRenderReview(${j.id}, 'REQUEST_CHANGES')">Solicitar Correções</button>
+                <button class="btn btn-sm btn-danger" onclick="submitRenderReview(${j.id}, 'REJECT')">Rejeitar Vídeo</button>
+              </div>` : ''}
+            ${j.review_decision ? `<div style="margin-top:4px; font-size:12px; opacity:0.85;">Revisão: <strong>${j.review_decision}</strong> ${(j.review_defects||[]).length ? `| Defeitos: ${j.review_defects.join(', ')}` : ''} ${j.review_notes ? `| ${j.review_notes}` : ''}</div>` : ''}
           </div>`).join('');
       } catch (e) { box.innerText = 'Erro ao carregar renders.'; }
     }

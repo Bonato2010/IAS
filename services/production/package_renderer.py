@@ -94,11 +94,24 @@ class PackageRendererService:
                     pending_assets_json TEXT DEFAULT '[]',
                     assets_used_json TEXT DEFAULT '[]',
                     error_message TEXT,
+                    review_decision TEXT,
+                    review_notes TEXT,
+                    review_defects_json TEXT DEFAULT '[]',
+                    reviewed_at TIMESTAMP,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 """
             )
+            existing_cols = {r[1] for r in conn.execute("PRAGMA table_info(render_jobs)").fetchall()}
+            for col_name, col_def in (
+                ("review_decision", "TEXT"),
+                ("review_notes", "TEXT"),
+                ("review_defects_json", "TEXT DEFAULT '[]'"),
+                ("reviewed_at", "TIMESTAMP"),
+            ):
+                if col_name not in existing_cols:
+                    conn.execute(f"ALTER TABLE render_jobs ADD COLUMN {col_name} {col_def}")
             conn.commit()
 
     def _create_job(self, package_id: int, channel_id: int) -> int:
@@ -128,6 +141,7 @@ class PackageRendererService:
         d = dict(r)
         d["pending_assets"] = json.loads(d.pop("pending_assets_json") or "[]")
         d["assets_used"] = json.loads(d.pop("assets_used_json") or "[]")
+        d["review_defects"] = json.loads(d.pop("review_defects_json", "[]") or "[]")
         return d
 
     def list_jobs(self, channel_id: Optional[int] = None, limit: int = 30) -> List[Dict[str, Any]]:
@@ -145,8 +159,51 @@ class PackageRendererService:
             d = dict(r)
             d["pending_assets"] = json.loads(d.pop("pending_assets_json") or "[]")
             d["assets_used"] = json.loads(d.pop("assets_used_json") or "[]")
+            d["review_defects"] = json.loads(d.pop("review_defects_json", "[]") or "[]")
             out.append(d)
         return out
+
+    def submit_human_review(
+        self,
+        job_id: int,
+        decision: str,
+        notes: str = "",
+        defects: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Registra a revisão humana final de um vídeo renderizado sem auto-aprovar."""
+        job = self.get_job(job_id)
+        if not job:
+            raise ValueError(f"Job de renderização {job_id} não encontrado.")
+        if job["status"] not in ("READY_FOR_REVIEW", "CHANGES_REQUESTED"):
+            raise ValueError(f"Job #{job_id} em estado '{job['status']}' não está aguardando revisão final.")
+
+        allowed = {
+            "APPROVE_FINAL": "COMPLETED",
+            "REQUEST_CHANGES": "CHANGES_REQUESTED",
+            "REJECT": "REJECTED",
+        }
+        if decision not in allowed:
+            raise ValueError(f"Decisão inválida '{decision}'. Permitidas: {tuple(allowed.keys())}")
+
+        new_status = allowed[decision]
+        defects_list = [str(x).strip() for x in (defects or []) if str(x).strip()]
+        with self._get_conn() as conn:
+            conn.execute(
+                """
+                UPDATE render_jobs
+                SET status = ?,
+                    checkpoint_stage = ?,
+                    review_decision = ?,
+                    review_notes = ?,
+                    review_defects_json = ?,
+                    reviewed_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (new_status, new_status, decision, notes, json.dumps(defects_list, ensure_ascii=False), job_id),
+            )
+            conn.commit()
+        return self.get_job(job_id)
 
     def _measure_lufs(self, media_path: str) -> Optional[float]:
         cmd = [

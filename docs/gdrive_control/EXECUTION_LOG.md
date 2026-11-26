@@ -210,3 +210,8 @@
 - **Motor de Renderização (`services/production/package_renderer.py`, `010_render_jobs.sql`):** Integração real com Edge-TTS (`real_neural` obrigatório), `SubtitleGenerator.generate_ass` (1080x1920), FFmpeg 9:16 `libx264/aac` + `loudnorm` `-14 LUFS`, medição EBU R128, `ffprobe`, `SHA256`, bloqueio por falta de aprovação ou `ASSET_NEEDED`, e checkpoints.
 - **API & Dashboard (`web/app.py`, `web/static/index.html`):** Endpoints `/api/production/renders*` e `/api/production/packages/{id}/render`, botão `Renderizar` e fila de renderização com playback MP4.
 - **Gate & Testes:** Gate vivo confirmado sem auto-aprovação (`0/10` aprovados, `phase22_pilot_gate_status.json`); renderização física real validada em `test_fase22_audiovisual_rendering.py` (`6/6`, `25.95s`). Relatório: `docs/audits/FASE22_AUDIOVISUAL_RENDERING.md`. Custo: **US$ 0,00**.
+
+### [2026-11-26] Fase 23 — Primeira Produção Real, Aprovação Editorial e Validação dos Cinco Canais
+- **Auditoria & Gate:** `10/10` pacotes da Fase 21 auditados (`READY_FOR_REVIEW`, `6/6` cenas `ASSET_NEEDED`, `0` aprovados automaticamente, `0` vídeos renderizados em produção por ausência de aprovação humana e assets físicos verificados).
+- **Fluxo Humano & Revisão Final:** Estados `CHANGES_REQUESTED` e `REJECTED` em `EditorialProductionEngine`; `submit_human_review()` em `PackageRendererService`; `POST /api/production/renders/{job_id}/review` em `web/app.py`; player `<video>`, checklist de defeitos e botões de aprovação/rejeição/alterações em `web/static/index.html`.
+- **Testes:** `test_fase23_production_review_flow.py` (`7/7`, `35.28s`) + regressão completa `25/25` suítes (`206/206`, `100.0%`, `587.19s`). Relatório: `docs/audits/FASE23_FIRST_REAL_PRODUCTION.md`. Custo: **US$ 0,00**.
