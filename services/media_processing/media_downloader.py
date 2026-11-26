@@ -120,9 +120,14 @@ class MediaDownloader:
 
         try:
             # Localiza o arquivo baixado
-            # Extrai o ID da URL
-            parts = youtube_url.rstrip("/").split("/")
-            raw_id = parts[-1].split("?")[0].replace("watch?v=", "")
+            # Extrai o ID da URL (suporta /shorts/ID, /watch?v=ID e youtu.be/ID)
+            from urllib.parse import urlparse, parse_qs
+            parsed = urlparse(youtube_url.strip())
+            qs = parse_qs(parsed.query)
+            if "v" in qs and qs["v"]:
+                raw_id = qs["v"][0]
+            else:
+                raw_id = parsed.path.rstrip("/").split("/")[-1]
 
             # Busca o arquivo pelo ID no diretório de download
             candidates = list(target_dir.glob(f"{raw_id}.*"))

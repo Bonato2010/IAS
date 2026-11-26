@@ -35,7 +35,8 @@ TEST_FILES = [
     "test_fase15_real_shorts_physical_pilot.py",
     "test_fase15_1_forensic_audit.py",
     "test_fase16_pilot_100_shorts.py",
-    "test_fase17_scale_readiness.py"
+    "test_fase17_scale_readiness.py",
+    "test_fase18_learning_and_benchmark.py"
 ]
 
 def run_test_suite():

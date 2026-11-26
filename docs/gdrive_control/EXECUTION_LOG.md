@@ -151,3 +151,14 @@
 - **Deduplicação e Rastreabilidade (`scale_selector.py`):** Deduplicação por fingerprint título+duração (`duplicate_title_duration_fingerprint`) e `inclusion_rationale` por candidato.
 - **Regressão Completa:** Adição de asserções em `tests/test_fase17_scale_readiness.py` e execução integral de `scripts/run_all_tests.py` com **19/19 suítes / 170/170 testes aprovados (100.0%, exit code 0, 594.90s)**.
 - **Relatório e Próximo Passo:** Emitido `docs/audits/FASE17_1_INDEPENDENT_SCALE_AUDIT.md` com veredito **`READY_WITH_RESERVATIONS`**, propondo lote controlado de **250 vídeos** (NÃO executado; 7.000 bloqueados). Custo mantido em **US$ 0,00**.
+
+---
+
+## [2026-11-26] - Fase 18: Aprendizado Editorial Real, Memória Evolutiva e Benchmark de 250 Vídeos
+
+### Tarefas executadas
+- **Seleção e Benchmark de 250 Shorts Reais (`select_benchmark_250_candidates.py`, `execute_benchmark_250_shorts.py`):** 250 vídeos únicos (50/canal) distintos dos 143 históricos; `239` baixados e decodificados com sucesso (`SHA256`, FFprobe/FFmpeg/OpenCV, `169` transcrições Whisper/legendas), `7` rejeitados (`SILENT_AUDIO_TRACK`), `11` falhas isoladas sem travar o lote e retomada real por checkpoint (`resumed_from_checkpoint_count=225`).
+- **Correções Estruturais:** Suporte a `/watch?v=` em `MediaDownloader.download_short()`, ajuste de `estimated_lufs` para `-70.0 a +5.0 LUFS` em `process_audio()`, captura de `subprocess.TimeoutExpired` em `verify_ffmpeg_decode()`.
+- **Extração de Características e Memória Evolutiva (`editorial_feature_extractor.py`, `editorial_memory_engine.py`):** 15 características reais (`NOT_AVAILABLE` para ausentes), split estratificado 70/15/15 (`train=168`, `val=37`, `test=34`, `leak_free=True`), geração de 10 novos conhecimentos (`3 APRENDIZADO_VALIDADO` em Ciência/Produtividade e `7 HIPÓTESE`), atualização de `ID 116` com preservação de histórico, e avaliação antes/depois em `test` disjunto.
+- **Transparência e Regressão:** `pilot_fase18_metrics` com rótulos `MEDIDO`/`ESTIMADO`/`NÃO_VERIFICADO` no dashboard e `web/static/index.html`; **20/20 suítes / 176/176 testes aprovados (`100.0%`, `564.98s`, `exit code 0`)**. Custo: **US$ 0,00**.
+- **Relatório:** Emitido `docs/audits/FASE18_LEARNING_AND_250_VIDEO_BENCHMARK.md`, propondo lote controlado de 500 vídeos (NÃO iniciado; 7.000 bloqueados).

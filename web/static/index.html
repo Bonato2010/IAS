@@ -744,6 +744,29 @@
         </div>
       </div>
 
+      <!-- BENCHMARK 250 VÍDEOS & MEMÓRIA EVOLUTIVA (FASE 18) -->
+      <div class="panel" style="margin-bottom:16px; border: 1px solid rgba(16, 185, 129, 0.3);">
+        <div class="panel-header">
+          <div>
+            <span class="panel-title"><i class="fa-solid fa-brain" style="color:var(--accent-emerald);"></i> Benchmark 250 Vídeos & Memória Evolutiva (Fase 18)</span>
+            <div style="font-size:0.78rem; color:var(--text-tertiary); margin-top:2px;">
+              Transparência estrita: <span class="badge badge-success">MEDIDO</span> vs <span class="badge badge-amber">ESTIMADO</span> vs <span class="badge">NÃO_VERIFICADO</span>
+            </div>
+          </div>
+          <span class="badge badge-success" id="p18-progress-badge">Progresso: —</span>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px;">
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Selecionados [MEDIDO]</div><strong id="p18-selected">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Baixados [MEDIDO]</div><strong id="p18-downloaded">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Analisados [MEDIDO]</div><strong id="p18-analyzed">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Incompletos / Rej. [MEDIDO]</div><strong id="p18-inc-rej">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Conhec. / Validados [MEDIDO]</div><strong id="p18-knowledge" style="color:var(--accent-emerald);">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Hipót. / Contraex. [MEDIDO]</div><strong id="p18-hyp-cnt">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Lote 500h [ESTIMADO]</div><strong id="p18-est-500" style="color:var(--accent-amber);">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Curvas YT [NÃO_VERIFICADO]</div><strong id="p18-retention-status">—</strong></div>
+        </div>
+      </div>
+
       <!-- BIBLIOTECA DE CONHECIMENTO EDITORIAL -->
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-header">
@@ -1979,6 +2002,18 @@
           const rates = p16.success_rate_per_channel || {};
           document.getElementById('p16-channel-rates').innerText = Object.entries(rates).map(([ch, pct]) => `C${ch}: ${pct}%`).join(' | ') || '—';
         }
+
+        // 4c. Telemetria Fase 18 (MEDIDO / ESTIMADO / NÃO_VERIFICADO)
+        const p18 = data.pilot_fase18_metrics || {};
+        if (document.getElementById('p18-selected')) document.getElementById('p18-selected').innerText = (p18.selected_count ?? 0).toLocaleString();
+        if (document.getElementById('p18-downloaded')) document.getElementById('p18-downloaded').innerText = (p18.downloaded_count ?? 0).toLocaleString();
+        if (document.getElementById('p18-analyzed')) document.getElementById('p18-analyzed').innerText = (p18.analyzed_count ?? 0).toLocaleString();
+        if (document.getElementById('p18-inc-rej')) document.getElementById('p18-inc-rej').innerText = `${p18.incomplete_analysis_count ?? 0} / ${p18.rejected_count ?? 0}`;
+        if (document.getElementById('p18-knowledge')) document.getElementById('p18-knowledge').innerText = `${p18.knowledge_generated ?? 0} / ${p18.validated_learnings ?? 0}`;
+        if (document.getElementById('p18-hyp-cnt')) document.getElementById('p18-hyp-cnt').innerText = `${p18.hypotheses_count ?? 0} / ${p18.counterexamples_count ?? 0}`;
+        if (document.getElementById('p18-est-500')) document.getElementById('p18-est-500').innerText = `${p18.future_batch_500_hours_estimate ?? 0} h`;
+        if (document.getElementById('p18-retention-status')) document.getElementById('p18-retention-status').innerText = p18.youtube_retention_curves_status || 'NÃO_VERIFICADO';
+        if (document.getElementById('p18-progress-badge')) document.getElementById('p18-progress-badge').innerText = `Progresso: ${p18.batch_progress_pct ?? 0}% (Falha: ${p18.failure_rate_pct ?? 0}%)`;
 
         // 5. Tabelas de Conhecimento e Experimentos
         await loadLearningKnowledge();

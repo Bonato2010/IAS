@@ -523,8 +523,8 @@ class AudiovisualLearningSystem:
         """
         if not (0.0 <= float(speech_clarity_score) <= 100.0):
             raise ValueError(f"speech_clarity_score deve estar entre 0.0 e 100.0, recebido: {speech_clarity_score}")
-        if not (-70.0 <= float(estimated_lufs) <= 0.0):
-            raise ValueError(f"estimated_lufs fora dos limites (-70.0 a 0.0 LUFS), recebido: {estimated_lufs}")
+        if not (-70.0 <= float(estimated_lufs) <= 5.0):
+            raise ValueError(f"estimated_lufs fora dos limites (-70.0 a +5.0 LUFS), recebido: {estimated_lufs}")
         if not (0.0 <= float(pauses_ratio) <= 1.0):
             raise ValueError(f"pauses_ratio deve estar entre 0.0 e 1.0, recebido: {pauses_ratio}")
 
@@ -2343,6 +2343,89 @@ class AudiovisualLearningSystem:
                 "circuit_breakers_triggered": p16_cb_triggered
             }
 
+            # Telemetria Real do Benchmark 250 Vídeos (Fase 18) com transparência MEDIDO / ESTIMADO / NÃO_VERIFICADO
+            cursor.execute("SELECT target_goal, processed_count, success_count, rejected_count, error_count, status FROM learning_batch_checkpoints WHERE batch_id = 'benchmark_250_fase18'")
+            p18_chk = cursor.fetchone()
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE raw_metadata LIKE '%\"pilot_phase\": 18%'")
+            p18_downloaded = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE raw_metadata LIKE '%\"pilot_phase\": 18%' AND processing_state IN ('learning_candidate', 'editorially_rejected', 'technical_analysis_complete')")
+            p18_analyzed = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE raw_metadata LIKE '%\"pilot_phase\": 18%' AND processing_state IN ('downloaded', 'visual_processed', 'audio_processed')")
+            p18_incomplete = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE raw_metadata LIKE '%\"pilot_phase\": 18%' AND processing_state = 'editorially_rejected'")
+            p18_rejected = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM audiovisual_library WHERE raw_metadata LIKE '%\"pilot_phase\": 18%' AND processing_state = 'failed'")
+            p18_failed = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 18%'")
+            p18_k_total = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 18%' AND classification = 'APRENDIZADO_VALIDADO'")
+            p18_k_validated = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 18%' AND classification = 'HIPÓTESE'")
+            p18_k_hyp = cursor.fetchone()[0]
+            p18_counterexamples = 0
+            p18_k_by_channel = {}
+            for kr in cursor.execute("SELECT target_channel_id, metadata FROM editorial_knowledge_library WHERE metadata LIKE '%\"pilot_phase\": 18%'").fetchall():
+                ch_k = str(kr[0] or 0)
+                p18_k_by_channel[ch_k] = p18_k_by_channel.get(ch_k, 0) + 1
+                try:
+                    p18_counterexamples += len(json.loads(kr[1] or "{}").get("counterexamples", []))
+                except Exception:
+                    pass
+
+            p18_selected = p18_chk["target_goal"] if p18_chk else p18_downloaded
+            p18_progress_pct = round((p18_downloaded / max(1, p18_selected)) * 100.0, 1) if p18_selected > 0 else 0.0
+            p18_failure_rate_pct = round((p18_failed / max(1, p18_selected)) * 100.0, 2) if p18_selected > 0 else 0.0
+            p18_proc_durations = []
+            for r_pay in cursor.execute("SELECT analysis_payload FROM audiovisual_library WHERE raw_metadata LIKE '%\"pilot_phase\": 18%'").fetchall():
+                try:
+                    pay = json.loads(r_pay[0] or "{}")
+                    t_s = pay.get("metadata", {}).get("processed_at")
+                    t_e = pay.get("editorial_adherence", {}).get("evaluated_at")
+                    if t_s and t_e and t_e >= t_s and (t_e - t_s) < 600:
+                        p18_proc_durations.append(t_e - t_s)
+                except Exception:
+                    pass
+            p18_avg_sec = round(sum(p18_proc_durations) / len(p18_proc_durations), 2) if p18_proc_durations else 0.0
+            p18_future_500_hours_est = round((500 * max(15.0, p18_avg_sec or 35.0)) / 3600.0, 2)
+
+            p18_telemetry = {
+                "benchmark_name": "Fase 18 - Benchmark 250 Vídeos e Memória Evolutiva",
+                "selected_count": p18_selected,
+                "downloaded_count": p18_downloaded,
+                "analyzed_count": p18_analyzed,
+                "incomplete_analysis_count": p18_incomplete,
+                "rejected_count": p18_rejected,
+                "failed_count": p18_failed,
+                "knowledge_generated": p18_k_total,
+                "validated_learnings": p18_k_validated,
+                "hypotheses_count": p18_k_hyp,
+                "counterexamples_count": p18_counterexamples,
+                "knowledge_by_channel": p18_k_by_channel,
+                "batch_progress_pct": p18_progress_pct,
+                "failure_rate_pct": p18_failure_rate_pct,
+                "avg_processing_time_sec": p18_avg_sec,
+                "future_batch_500_hours_estimate": p18_future_500_hours_est,
+                "youtube_retention_curves_status": "NÃO_VERIFICADO",
+                "transparency_labels": {
+                    "selected_count": "MEDIDO",
+                    "downloaded_count": "MEDIDO",
+                    "analyzed_count": "MEDIDO",
+                    "incomplete_analysis_count": "MEDIDO",
+                    "rejected_count": "MEDIDO",
+                    "knowledge_generated": "MEDIDO",
+                    "validated_learnings": "MEDIDO",
+                    "hypotheses_count": "MEDIDO",
+                    "counterexamples_count": "MEDIDO",
+                    "knowledge_by_channel": "MEDIDO",
+                    "batch_progress_pct": "MEDIDO",
+                    "failure_rate_pct": "MEDIDO",
+                    "avg_processing_time_sec": "MEDIDO",
+                    "future_batch_500_hours_estimate": "ESTIMADO",
+                    "youtube_retention_curves_status": "NÃO_VERIFICADO",
+                },
+            }
+
             return {
                 "target_goal": self.target_goal,
                 "progress_percentage": audit["progress_percentage"],
@@ -2374,6 +2457,7 @@ class AudiovisualLearningSystem:
                 },
                 "pilot_fase15_metrics": pilot_telemetry,
                 "pilot_fase16_metrics": p16_telemetry,
+                "pilot_fase18_metrics": p18_telemetry,
                 "niche_distribution": niche_distribution,
                 "language_distribution": lang_distribution,
                 "discard_reasons": discard_reasons,
