@@ -1520,6 +1520,79 @@ def get_channel_recommendations_route(channel_id: int):
     recs = pipe.generate_recommendations_from_memory(channel_id, sample_feats)
     return {"channel_id": channel_id, "knowledge_count": mem.get("knowledge_count", 0), "recommendations": recs}
 
+# ------------------------------------------------------------------------------
+# 10. PRODUÇÃO EDITORIAL INTELIGENTE (FASE 21)
+# ------------------------------------------------------------------------------
+def _get_prod_engine():
+    from services.production.editorial_production_engine import EditorialProductionEngine
+    return EditorialProductionEngine(db_path=learning_system.db_path)
+
+@app.get("/api/production/identities")
+def list_production_identities():
+    from services.production.editorial_production_engine import CHANNEL_IDENTITIES
+    return {"identities": list(CHANNEL_IDENTITIES.values())}
+
+@app.get("/api/production/references/{channel_id}")
+def list_production_references(channel_id: int, limit: int = 20):
+    try:
+        return {"channel_id": channel_id, "references": _get_prod_engine().list_eligible_references(channel_id, limit=limit)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/production/packages")
+def list_production_packages(channel_id: Optional[int] = None, status: Optional[str] = None, limit: int = 50):
+    return {"packages": _get_prod_engine().list_packages(channel_id=channel_id, status=status, limit=limit)}
+
+@app.get("/api/production/packages/compare")
+def compare_production_packages(id_a: int, id_b: int):
+    try:
+        return _get_prod_engine().compare_versions(id_a, id_b)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/api/production/packages/{package_id}")
+def get_production_package(package_id: int):
+    pkg = _get_prod_engine().get_package(package_id)
+    if not pkg:
+        raise HTTPException(status_code=404, detail="Pacote não encontrado.")
+    return pkg
+
+@app.post("/api/production/packages/generate")
+def generate_production_package(payload: Dict[str, Any]):
+    try:
+        return _get_prod_engine().generate_package(
+            channel_id=int(payload.get("channel_id", 1)),
+            theme=str(payload.get("theme", "")),
+            reference_source_id=payload.get("reference_source_id") or None,
+            target_duration_sec=float(payload.get("target_duration_sec", 35.0)),
+            editorial_goal=str(payload.get("editorial_goal", "retenção e engajamento orgânico")),
+            content_restrictions=str(payload.get("content_restrictions", "Sem cópia literal de terceiros, sem áudio silencioso.")),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/api/production/packages/{package_id}")
+def update_production_package(package_id: int, payload: Dict[str, Any]):
+    try:
+        return _get_prod_engine().update_package_manual(package_id, payload.get("updates", payload), note=payload.get("note", "Edição manual via Dashboard"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/production/packages/{package_id}/duplicate")
+def duplicate_production_package(package_id: int, payload: Optional[Dict[str, Any]] = None):
+    try:
+        new_theme = (payload or {}).get("theme")
+        return _get_prod_engine().duplicate_version(package_id, new_theme=new_theme)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/production/packages/{package_id}/status")
+def transition_production_package_status(package_id: int, payload: Dict[str, Any]):
+    try:
+        return _get_prod_engine().transition_status(package_id, str(payload.get("status", "")), reason=str(payload.get("reason", "")))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"
 static_dir.mkdir(parents=True, exist_ok=True)

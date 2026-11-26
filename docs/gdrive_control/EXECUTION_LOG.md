@@ -192,3 +192,12 @@
 - **Pipeline Integrado (`services/orchestration/vantis_core_pipeline.py`):** Criado `VantisCorePipeline` unificando as 16 etapas em máquina de estados explícita e conectando `generate_recommendations_from_memory` ao endpoint `GET /api/learning/recommendations/{channel_id}`.
 - **Execução Real E2E:** Processados `5/5` Shorts reais (1 por canal) até `COMPLETED` (`docs/audits/phase20_e2e_sample_5.json`).
 - **Regressão e Relatório:** Adicionada `tests/test_fase20_operational_e2e.py` e emitido `docs/audits/FASE20_OPERATIONAL_AUDIT.md` (`OPERATIONAL_WITH_RESERVATIONS`). Custo: **US$ 0,00**.
+
+---
+
+## [2026-11-26] - Fase 21: Produção Editorial Inteligente e Pacotes de Conteúdo
+
+### Tarefas executadas
+- **Motor de Produção (`services/production/editorial_production_engine.py`, `009_editorial_production_packages.sql`):** Pacotes completos A–E com 5 identidades editoriais, consulta à memória do canal, validação de referência real, `ASSET_NEEDED` para mídias pendentes, edição manual, duplicação, comparação de versões e máquina de estados.
+- **Dashboard & API (`web/app.py`, `web/static/index.html`):** 9 endpoints `/api/production/*` e painel interativo de criação, visualização, edição, duplicação e aprovação de pacotes.
+- **Piloto Controlado & Testes:** Gerados `10/10` pacotes reais (`phase21_pilot_10_packages.json`), `6/6` em `test_fase21_editorial_production.py` e relatório `docs/audits/FASE21_EDITORIAL_PRODUCTION.md`. Custo: **US$ 0,00**.

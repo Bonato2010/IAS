@@ -38,7 +38,8 @@ TEST_FILES = [
     "test_fase17_scale_readiness.py",
     "test_fase18_learning_and_benchmark.py",
     "test_fase19_drive_first_and_calibration.py",
-    "test_fase20_operational_e2e.py"
+    "test_fase20_operational_e2e.py",
+    "test_fase21_editorial_production.py"
 ]
 
 def run_test_suite():

@@ -788,6 +788,33 @@
         </div>
       </div>
 
+      <!-- PRODUÇÃO EDITORIAL INTELIGENTE (FASE 21) -->
+      <div class="panel" style="margin-bottom:16px; border: 1px solid rgba(168, 85, 247, 0.3);">
+        <div class="panel-header">
+          <div>
+            <span class="panel-title"><i class="fa-solid fa-clapperboard" style="color:var(--accent-purple, #a855f7);"></i> Produção Editorial Inteligente (Fase 21)</span>
+            <div style="font-size:0.78rem; color:var(--text-tertiary); margin-top:2px;">
+              Canal → Memória → Roteiro Original → Plano Audiovisual & Áudio → Revisão & Aprovação
+            </div>
+          </div>
+          <button class="btn btn-sm btn-primary" onclick="loadProdPackages()"><i class="fa-solid fa-rotate"></i> Atualizar Pacotes</button>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:12px;">
+          <select id="prod-channel" class="form-input" onchange="loadProdRefs()">
+            <option value="1">1 - Futebol em 60s</option>
+            <option value="2">2 - Arquivo Sombrio</option>
+            <option value="3">3 - Rir para Não Chorar</option>
+            <option value="4">4 - Mente Curiosa & Ciência</option>
+            <option value="5">5 - Mente Focada & Produtividade</option>
+          </select>
+          <input id="prod-theme" class="form-input" placeholder="Tema do Short (obrigatório)" />
+          <select id="prod-ref" class="form-input"><option value="">Sem referência (opcional)</option></select>
+          <button class="btn btn-primary" onclick="generateProdPackage()"><i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Pacote</button>
+        </div>
+        <div id="prod-packages-list" style="font-size:0.82rem; color:var(--text-secondary);">Carregando pacotes...</div>
+        <div id="prod-package-detail" style="display:none; margin-top:12px; padding:12px; background:var(--bg-surface-elevated); border-radius:6px; font-size:0.82rem;"></div>
+      </div>
+
       <!-- BIBLIOTECA DE CONHECIMENTO EDITORIAL -->
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-header">
@@ -2047,6 +2074,9 @@
         if (document.getElementById('drv-sync-badge')) document.getElementById('drv-sync-badge').innerText = `Sync: ${drv.sync_status || '—'}`;
         if (document.getElementById('drv-device-label')) document.getElementById('drv-device-label').innerText = `Dispositivo: ${drv.authorized_device || '—'}`;
 
+        await loadProdRefs();
+        await loadProdPackages();
+
         // 5. Tabelas de Conhecimento e Experimentos
         await loadLearningKnowledge();
         await loadLearningExperiments();
@@ -2691,6 +2721,82 @@
     }
 
     window.onload = refreshCurrentView;
+    // 10. PRODUÇÃO EDITORIAL INTELIGENTE (FASE 21)
+    async function loadProdRefs() {
+      const ch = document.getElementById('prod-channel')?.value || 1;
+      const sel = document.getElementById('prod-ref');
+      if (!sel) return;
+      try {
+        const res = await fetch(`/api/production/references/${ch}?limit=15`);
+        const data = await res.json();
+        sel.innerHTML = '<option value="">Sem referência (opcional)</option>' +
+          (data.references || []).map(r => `<option value="${r.source_id}">${r.source_id} - ${(r.title || '').slice(0, 42)}</option>`).join('');
+      } catch (e) { console.error(e); }
+    }
+    async function loadProdPackages() {
+      const box = document.getElementById('prod-packages-list');
+      if (!box) return;
+      try {
+        const res = await fetch('/api/production/packages?limit=12');
+        const data = await res.json();
+        const pkgs = data.packages || [];
+        if (!pkgs.length) { box.innerText = 'Nenhum pacote gerado ainda.'; return; }
+        box.innerHTML = pkgs.map(p => `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span><strong>#${p.id} v${p.version}</strong> [Ch${p.channel_id}] ${p.theme} — <span class="badge">${p.status}</span></span>
+            <span style="display:flex; gap:6px;">
+              <button class="btn btn-sm" onclick="viewProdPackage(${p.id})">Ver</button>
+              <button class="btn btn-sm" onclick="duplicateProdPackage(${p.id})">Duplicar</button>
+              <button class="btn btn-sm btn-primary" onclick="approveProdPackage(${p.id})">Aprovar</button>
+            </span>
+          </div>`).join('');
+      } catch (e) { box.innerText = 'Erro ao carregar pacotes.'; }
+    }
+    async function generateProdPackage() {
+      const ch = Number(document.getElementById('prod-channel')?.value || 1);
+      const theme = (document.getElementById('prod-theme')?.value || '').trim();
+      const ref = document.getElementById('prod-ref')?.value || null;
+      if (!theme) { alert('Informe um tema editorial.'); return; }
+      const res = await fetch('/api/production/packages/generate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({channel_id: ch, theme, reference_source_id: ref})
+      });
+      if (res.ok) { const pkg = await res.json(); await loadProdPackages(); await viewProdPackage(pkg.id); }
+    }
+    async function viewProdPackage(id) {
+      const box = document.getElementById('prod-package-detail');
+      if (!box) return;
+      const res = await fetch(`/api/production/packages/${id}`);
+      const p = await res.json();
+      const pkg = p.package || {};
+      box.style.display = 'block';
+      box.innerHTML = `<strong>Pacote #${p.id} (v${p.version} | ${p.status}) — ${p.channel_name}</strong><br>
+        <em>Hook:</em> <input id="edit-hook-${p.id}" class="form-input" style="width:100%; margin:4px 0;" value="${(pkg.script?.hook || '').replace(/"/g, '&quot;')}" />
+        <button class="btn btn-sm" onclick="saveHookEdit(${p.id})">Salvar Edição Manual</button><br><br>
+        <strong>Desenvolvimento:</strong> ${pkg.script?.development || ''}<br>
+        <strong>Cenas (${pkg.audiovisual_plan?.total_scenes || 0}):</strong> ${(pkg.audiovisual_plan?.scenes || []).map(s => `[${s.scene_index}: ${s.stage} ${s.estimated_duration_sec}s (${s.media_asset_status})]`).join(' ')}<br>
+        <strong>Áudio:</strong> ${pkg.audio_plan?.tone || ''} | ${pkg.audio_plan?.music_ambience_royalty_free || ''}<br>
+        <strong>Memórias Aplicadas:</strong> ${(pkg.applied_memories || []).map(m => `#${m.knowledge_id} (${m.classification})`).join(', ') || 'Nenhuma'}`;
+    }
+    async function saveHookEdit(id) {
+      const hook = document.getElementById(`edit-hook-${id}`)?.value || '';
+      await fetch(`/api/production/packages/${id}`, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({updates: {script: {hook}}, note: 'Edição manual de hook no dashboard'})
+      });
+      await loadProdPackages();
+    }
+    async function duplicateProdPackage(id) {
+      await fetch(`/api/production/packages/${id}/duplicate`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+      await loadProdPackages();
+    }
+    async function approveProdPackage(id) {
+      await fetch(`/api/production/packages/${id}/status`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: 'APPROVED_FOR_PRODUCTION', reason: 'Aprovado no dashboard'})
+      });
+      await loadProdPackages();
+    }
   </script>
 </body>
 </html>
