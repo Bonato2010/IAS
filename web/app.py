@@ -1593,6 +1593,40 @@ def transition_production_package_status(package_id: int, payload: Dict[str, Any
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+def _get_renderer():
+    from services.production.package_renderer import PackageRendererService
+    return PackageRendererService(db_path=learning_system.db_path)
+
+@app.get("/api/production/renders")
+def list_render_jobs(channel_id: Optional[int] = None, limit: int = 30):
+    return {"jobs": _get_renderer().list_jobs(channel_id=channel_id, limit=limit)}
+
+@app.get("/api/production/renders/{job_id}")
+def get_render_job(job_id: int):
+    job = _get_renderer().get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job de renderização não encontrado.")
+    return job
+
+@app.get("/api/production/renders/{job_id}/file")
+def serve_render_file(job_id: int):
+    job = _get_renderer().get_job(job_id)
+    if not job or not job.get("output_mp4_path") or not Path(job["output_mp4_path"]).is_file():
+        raise HTTPException(status_code=404, detail="Arquivo MP4 renderizado não encontrado.")
+    return FileResponse(job["output_mp4_path"], media_type="video/mp4")
+
+@app.post("/api/production/packages/{package_id}/render")
+def render_production_package(package_id: int, payload: Optional[Dict[str, Any]] = None):
+    try:
+        body = payload or {}
+        return _get_renderer().render_package(
+            package_id=package_id,
+            available_assets=body.get("available_assets"),
+            resume_job_id=body.get("resume_job_id"),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 # Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"
 static_dir.mkdir(parents=True, exist_ok=True)

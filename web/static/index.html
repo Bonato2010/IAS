@@ -813,6 +813,10 @@
         </div>
         <div id="prod-packages-list" style="font-size:0.82rem; color:var(--text-secondary);">Carregando pacotes...</div>
         <div id="prod-package-detail" style="display:none; margin-top:12px; padding:12px; background:var(--bg-surface-elevated); border-radius:6px; font-size:0.82rem;"></div>
+        <div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.08);">
+          <strong style="font-size:0.82rem;">Fila de Renderização Audiovisual (Fase 22)</strong>
+          <div id="prod-renders-list" style="font-size:0.8rem; color:var(--text-secondary); margin-top:6px;">Carregando renders...</div>
+        </div>
       </div>
 
       <!-- BIBLIOTECA DE CONHECIMENTO EDITORIAL -->
@@ -2076,6 +2080,7 @@
 
         await loadProdRefs();
         await loadProdPackages();
+        await loadRenderJobs();
 
         // 5. Tabelas de Conhecimento e Experimentos
         await loadLearningKnowledge();
@@ -2748,6 +2753,7 @@
               <button class="btn btn-sm" onclick="viewProdPackage(${p.id})">Ver</button>
               <button class="btn btn-sm" onclick="duplicateProdPackage(${p.id})">Duplicar</button>
               <button class="btn btn-sm btn-primary" onclick="approveProdPackage(${p.id})">Aprovar</button>
+              <button class="btn btn-sm" onclick="renderProdPackage(${p.id})">Renderizar</button>
             </span>
           </div>`).join('');
       } catch (e) { box.innerText = 'Erro ao carregar pacotes.'; }
@@ -2796,6 +2802,29 @@
         body: JSON.stringify({status: 'APPROVED_FOR_PRODUCTION', reason: 'Aprovado no dashboard'})
       });
       await loadProdPackages();
+    }
+    async function renderProdPackage(id) {
+      const res = await fetch(`/api/production/packages/${id}/render`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'
+      });
+      const job = await res.json();
+      if (job.status === 'BLOCKED') alert(job.error_message || 'Renderização bloqueada.');
+      await loadRenderJobs();
+    }
+    async function loadRenderJobs() {
+      const box = document.getElementById('prod-renders-list');
+      if (!box) return;
+      try {
+        const res = await fetch('/api/production/renders?limit=10');
+        const data = await res.json();
+        const jobs = data.jobs || [];
+        if (!jobs.length) { box.innerText = 'Nenhuma renderização executada ainda.'; return; }
+        box.innerHTML = jobs.map(j => `
+          <div style="padding:5px 6px; border-bottom:1px solid rgba(255,255,255,0.05);">
+            <strong>Job #${j.id}</strong> (Pkg #${j.package_id} Ch${j.channel_id}) — <span class="badge">${j.status}</span>
+            ${j.output_mp4_path ? `| ${j.duration_sec}s | ${j.resolution} | ${j.measured_lufs} LUFS | <a href="/api/production/renders/${j.id}/file" target="_blank">Abrir MP4</a>` : `| ${j.error_message || ''}`}
+          </div>`).join('');
+      } catch (e) { box.innerText = 'Erro ao carregar renders.'; }
     }
   </script>
 </body>

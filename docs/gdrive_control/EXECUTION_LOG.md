@@ -201,3 +201,12 @@
 - **Motor de Produção (`services/production/editorial_production_engine.py`, `009_editorial_production_packages.sql`):** Pacotes completos A–E com 5 identidades editoriais, consulta à memória do canal, validação de referência real, `ASSET_NEEDED` para mídias pendentes, edição manual, duplicação, comparação de versões e máquina de estados.
 - **Dashboard & API (`web/app.py`, `web/static/index.html`):** 9 endpoints `/api/production/*` e painel interativo de criação, visualização, edição, duplicação e aprovação de pacotes.
 - **Piloto Controlado & Testes:** Gerados `10/10` pacotes reais (`phase21_pilot_10_packages.json`), `6/6` em `test_fase21_editorial_production.py` e relatório `docs/audits/FASE21_EDITORIAL_PRODUCTION.md`. Custo: **US$ 0,00**.
+
+---
+
+## [2026-11-26] - Fase 22: Renderização Audiovisual Real e Pipeline de Produção
+
+### Tarefas executadas
+- **Motor de Renderização (`services/production/package_renderer.py`, `010_render_jobs.sql`):** Integração real com Edge-TTS (`real_neural` obrigatório), `SubtitleGenerator.generate_ass` (1080x1920), FFmpeg 9:16 `libx264/aac` + `loudnorm` `-14 LUFS`, medição EBU R128, `ffprobe`, `SHA256`, bloqueio por falta de aprovação ou `ASSET_NEEDED`, e checkpoints.
+- **API & Dashboard (`web/app.py`, `web/static/index.html`):** Endpoints `/api/production/renders*` e `/api/production/packages/{id}/render`, botão `Renderizar` e fila de renderização com playback MP4.
+- **Gate & Testes:** Gate vivo confirmado sem auto-aprovação (`0/10` aprovados, `phase22_pilot_gate_status.json`); renderização física real validada em `test_fase22_audiovisual_rendering.py` (`6/6`, `25.95s`). Relatório: `docs/audits/FASE22_AUDIOVISUAL_RENDERING.md`. Custo: **US$ 0,00**.
