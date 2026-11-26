@@ -162,3 +162,13 @@
 - **Extração de Características e Memória Evolutiva (`editorial_feature_extractor.py`, `editorial_memory_engine.py`):** 15 características reais (`NOT_AVAILABLE` para ausentes), split estratificado 70/15/15 (`train=168`, `val=37`, `test=34`, `leak_free=True`), geração de 10 novos conhecimentos (`3 APRENDIZADO_VALIDADO` em Ciência/Produtividade e `7 HIPÓTESE`), atualização de `ID 116` com preservação de histórico, e avaliação antes/depois em `test` disjunto.
 - **Transparência e Regressão:** `pilot_fase18_metrics` com rótulos `MEDIDO`/`ESTIMADO`/`NÃO_VERIFICADO` no dashboard e `web/static/index.html`; **20/20 suítes / 176/176 testes aprovados (`100.0%`, `564.98s`, `exit code 0`)**. Custo: **US$ 0,00**.
 - **Relatório:** Emitido `docs/audits/FASE18_LEARNING_AND_250_VIDEO_BENCHMARK.md`, propondo lote controlado de 500 vídeos (NÃO iniciado; 7.000 bloqueados).
+
+---
+
+## [2026-11-26] - Fase 18.1: Auditoria Independente e Sincronização da Develop
+
+### Tarefas executadas
+- **Sincronização Git (`develop`):** Push limpo de 12 commits para `origin/develop` (`3dd3070..3962ca3`), `main` preservada.
+- **Auditoria Física:** Confirmados `239/239` vídeos elegíveis no disco (`241` arquivos em `benchmark250`, `1,971.99 MB`), `0` divergências de SHA256/tamanho e `169` transcrições reais.
+- **Correções:** Alinhamento de chaves em `EditorialFeatureExtractor` (`full_transcript`, `has_subtitles_on_screen`, `cut_intervals_sec`) e guarda contra micro-denominadores (`views >= 30`) em `EditorialMemoryEngine` (`5 APRENDIZADO_VALIDADO`, `20 HIPÓTESE`).
+- **Regressão e Relatório:** `20/20` suítes / `178/178` testes aprovados (`100.0%`, `exit code 0`); emitido `docs/audits/FASE18_1_INDEPENDENT_AUDIT.md` (`PASS_WITH_RESERVATIONS`).

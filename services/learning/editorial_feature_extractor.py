@@ -53,7 +53,8 @@ class EditorialFeatureExtractor:
         duration = float(duration) if duration is not None and float(duration) > 0 else None
 
         transcript = (
-            narrative.get("transcript_preview")
+            narrative.get("full_transcript")
+            or narrative.get("transcript_preview")
             or video_record.get("transcript")
             or ""
         ).strip()
@@ -74,7 +75,13 @@ class EditorialFeatureExtractor:
             avg_cut_interval = round(duration / max(1, int(cuts_count)), 2)
 
         # Tempo até o primeiro evento relevante (primeiro corte ou início de fala)
-        first_cut = visual.get("first_cut_timestamp_sec")
+        text_ev = visual.get("text_detection_evidence") or {}
+        cut_intervals = visual.get("cut_intervals_sec") or []
+        first_cut = (
+            visual.get("first_cut_timestamp_sec")
+            or text_ev.get("first_cut_timestamp_sec")
+            or (cut_intervals[0] if cut_intervals else None)
+        )
         if first_cut is not None:
             time_to_first_event: Any = round(float(first_cut), 2)
         elif cuts_count is not None and int(cuts_count) > 0 and duration:
@@ -160,7 +167,9 @@ class EditorialFeatureExtractor:
         else:
             av_relation = NOT_AVAILABLE
 
-        text_on_screen = visual.get("text_on_screen_detected")
+        text_on_screen = visual.get("has_subtitles_on_screen")
+        if text_on_screen is None:
+            text_on_screen = visual.get("text_on_screen_detected")
         if text_on_screen is None:
             text_on_screen = NOT_AVAILABLE
 

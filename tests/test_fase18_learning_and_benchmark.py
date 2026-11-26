@@ -177,6 +177,44 @@ class TestFase18LearningAndBenchmark(unittest.TestCase):
         self.assertEqual(labels["youtube_retention_curves_status"], "NÃO_VERIFICADO")
         self.assertEqual(m18["youtube_retention_curves_status"], "NÃO_VERIFICADO")
 
+    def test_07_extractor_reads_full_transcript_and_has_subtitles_on_screen(self):
+        """Auditoria 18.1: Extrator lê full_transcript, has_subtitles_on_screen e cut_intervals_sec."""
+        rec = {
+            "source_id": "v_real_keys",
+            "duration_seconds": 24.0,
+            "analysis_payload": json.dumps({
+                "visual_and_editing": {"cuts_count": 5, "has_subtitles_on_screen": True, "cut_intervals_sec": [2.4, 4.1]},
+                "audio": {"integrated_lufs": -14.5, "classification": "VALID_AUDIO", "is_usable": True, "speech_clarity_score": 0.88, "lra": 5.2},
+                "narrative_and_script": {
+                    "speech_detected": True,
+                    "word_count": 48,
+                    "speaking_pace_wpm": 120.0,
+                    "full_transcript": "Por que isso acontece? Mas então descobriu o segredo e portanto aprendemos no final!",
+                },
+            }),
+        }
+        feats = self.extractor.extract(rec)
+        self.assertEqual(feats["hook_type"], "question")
+        self.assertEqual(feats["time_to_first_relevant_event_sec"], 2.4)
+        self.assertTrue(feats["text_on_screen_detected"])
+        self.assertTrue(feats["suspense_structure"])
+        self.assertTrue(feats["has_conclusion"])
+        self.assertEqual(feats["narrative_progression"], "complete_3_acts")
+
+    def test_08_micro_denominator_guard_and_channel_memory_persistence(self):
+        """Auditoria 18.1: Protege contra 1 view = 100% engajamento e valida persistência isolada por canal."""
+        self.als.record_knowledge(
+            niche="curiosidades", topic="teste_persistencia", title="Regra Persistente C4",
+            summary="Teste de persistência.", classification="APRENDIZADO_VALIDADO",
+            evidence_video_ids=["e1", "e2"], counterexamples=["c1"], target_channel_id=4, pilot_phase=18,
+        )
+        fresh_als = AudiovisualLearningSystem(db_path=self.db_path)
+        mem4 = fresh_als.get_channel_editorial_memory(4)
+        mem1 = fresh_als.get_channel_editorial_memory(1)
+        self.assertEqual(mem4["knowledge_count"], 1)
+        self.assertEqual(mem1["knowledge_count"], 0)
+        self.assertTrue(all(item["target_channel_id"] == 4 for item in mem4["knowledge_items"]))
+
 
 if __name__ == "__main__":
     unittest.main()

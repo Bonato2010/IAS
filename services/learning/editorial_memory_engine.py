@@ -220,8 +220,21 @@ class EditorialMemoryEngine:
                 else:
                     control_weak.append(vid)
 
-        med_fav_eng = _median(fav_engs)
-        med_ctrl_eng = _median(ctrl_engs)
+        # Filtra ruído de denominador minúsculo (ex: 1 view + 1 like = 100% engajamento) ao calcular medianas
+        fav_engs_reliable = [
+            float(v.get("engagement_ratio") or 0.0)
+            for v in train_val_videos
+            if predicate(v.get("editorial_features") or self.extractor.extract(v), v) is True
+            and int(v.get("views_count") or v.get("views") or 0) >= 30
+        ]
+        ctrl_engs_reliable = [
+            float(v.get("engagement_ratio") or 0.0)
+            for v in train_val_videos
+            if predicate(v.get("editorial_features") or self.extractor.extract(v), v) is False
+            and int(v.get("views_count") or v.get("views") or 0) >= 30
+        ]
+        med_fav_eng = _median(fav_engs_reliable) if len(fav_engs_reliable) >= 3 else _median(fav_engs)
+        med_ctrl_eng = _median(ctrl_engs_reliable) if len(ctrl_engs_reliable) >= 3 else _median(ctrl_engs)
         med_fav_rel = _median(fav_rel_views)
         med_ctrl_rel = _median(ctrl_rel_views)
 
