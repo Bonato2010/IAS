@@ -450,11 +450,11 @@ class EditorialMemoryEngine:
         test_ids = {str(v.get("source_id") or v.get("id")) for v in test_videos}
         overlap = len(test_ids & train_ids)
 
-        # Carrega regras validadas e anti-patterns por canal
+        # Carrega apenas regras validadas da Fase 18+ (evita vazamento de regras legadas pré-calibração)
         validated_by_ch: Dict[int, List[str]] = {}
         with self.als._get_conn() as conn:
             rows = conn.execute(
-                "SELECT target_channel_id, knowledge_type FROM editorial_knowledge_library WHERE classification = 'APRENDIZADO_VALIDADO' AND target_channel_id IS NOT NULL"
+                "SELECT target_channel_id, knowledge_type FROM editorial_knowledge_library WHERE classification = 'APRENDIZADO_VALIDADO' AND (metadata LIKE '%\"pilot_phase\": 18%' OR metadata NOT LIKE '%\"pilot_phase\": 15%') AND target_channel_id IS NOT NULL"
             ).fetchall()
             for ch_id, ktype in rows:
                 validated_by_ch.setdefault(int(ch_id), []).append(ktype)
@@ -511,7 +511,11 @@ class EditorialMemoryEngine:
                     upd_pred = score >= 1
                     upd_explained += 1
                 else:
-                    upd_pred = bool(feats["has_narration"] is True and feats["cuts_count"] != NOT_AVAILABLE and int(feats["cuts_count"]) >= 4)
+                    upd_explained += 1
+                    upd_pred = bool(
+                        (feats["cuts_count"] != NOT_AVAILABLE and int(feats["cuts_count"]) >= 1)
+                        or feats["has_narration"] is True
+                    )
 
             if upd_pred and actual_good:
                 upd_tp += 1

@@ -2426,6 +2426,57 @@ class AudiovisualLearningSystem:
                 },
             }
 
+            # Telemetria Drive-First & Calibração Editorial (Fase 19)
+            base_root = Path(__file__).resolve().parent.parent.parent
+            drive_manifest_path = base_root / "docs" / "audits" / "phase19_drive_manifest.json"
+            cal_path = base_root / "docs" / "audits" / "phase18_2_calibration_results.json"
+            cache_dir = base_root / "workspace" / "cache" / "remote_tmp"
+            cached_files = [p for p in cache_dir.iterdir() if p.is_file() and not p.name.startswith("_tmp_")] if cache_dir.exists() else []
+            dm = {}
+            if drive_manifest_path.exists():
+                try:
+                    dm = json.loads(drive_manifest_path.read_text(encoding="utf-8"))
+                except Exception:
+                    dm = {}
+            dm_files = dm.get("files", [])
+            remote_verified_cnt = sum(1 for f in dm_files if f.get("storage_state") == "REMOTE_VERIFIED")
+            integrity_err_cnt = sum(1 for f in dm_files if f.get("storage_state") == "INTEGRITY_ERROR")
+            drive_bytes = sum(int(f.get("size_bytes") or 0) for f in dm_files if f.get("storage_state") == "REMOTE_VERIFIED")
+            total_local_inv = int(dm.get("total_local_files") or 0)
+            pending_cnt = max(0, total_local_inv - remote_verified_cnt)
+            cal_data = {}
+            if cal_path.exists():
+                try:
+                    cal_data = json.loads(cal_path.read_text(encoding="utf-8"))
+                except Exception:
+                    cal_data = {}
+            test_cal = cal_data.get("test_split", {}).get("calibrated", {})
+            test_base = cal_data.get("test_split", {}).get("baseline", {})
+
+            drive_storage_metrics = {
+                "videos_in_drive": remote_verified_cnt,
+                "videos_remote_available": remote_verified_cnt,
+                "videos_temporarily_cached": len(cached_files),
+                "drive_space_used_mb": round(drive_bytes / (1024 * 1024), 2),
+                "files_migrated": int(dm.get("migrated_new") or 0) + int(dm.get("reused_existing") or 0),
+                "files_pending": pending_cnt,
+                "integrity_failures": integrity_err_cnt,
+                "uploads_in_progress": 0,
+                "sync_status": "SYNCHRONIZED" if (remote_verified_cnt > 0 and pending_cnt == 0 and integrity_err_cnt == 0) else ("IN_PROGRESS" if dm_files else "NOT_STARTED"),
+                "authorized_device": (dm.get("sqlite_snapshot") or {}).get("device_id", "LOCAL_UNVERIFIED"),
+                "editorial_memory_synced": bool(dm.get("sqlite_snapshot")),
+                "last_confirmed_sync": dm.get("updated_at") or "NÃO_VERIFICADO",
+                "db_manifest_divergences": abs(p18_downloaded - remote_verified_cnt) if dm_files else p18_downloaded,
+                "editorial_calibration_status": f"Baseline {test_base.get('precision_pct', '—')}% -> Calibrado {test_cal.get('precision_pct', '—')}%" if test_cal else "NÃO_VERIFICADO",
+                "transparency_labels": {
+                    "videos_in_drive": "MEDIDO" if dm_files else "NÃO_VERIFICADO",
+                    "drive_space_used_mb": "MEDIDO" if dm_files else "NÃO_VERIFICADO",
+                    "videos_temporarily_cached": "MEDIDO",
+                    "editorial_calibration_status": "MEDIDO" if test_cal else "NÃO_VERIFICADO",
+                    "youtube_studio_ctr_retention": "NÃO_VERIFICADO",
+                },
+            }
+
             return {
                 "target_goal": self.target_goal,
                 "progress_percentage": audit["progress_percentage"],
@@ -2458,6 +2509,7 @@ class AudiovisualLearningSystem:
                 "pilot_fase15_metrics": pilot_telemetry,
                 "pilot_fase16_metrics": p16_telemetry,
                 "pilot_fase18_metrics": p18_telemetry,
+                "drive_storage_metrics": drive_storage_metrics,
                 "niche_distribution": niche_distribution,
                 "language_distribution": lang_distribution,
                 "discard_reasons": discard_reasons,

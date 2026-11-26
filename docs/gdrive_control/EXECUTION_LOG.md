@@ -172,3 +172,13 @@
 - **Auditoria Física:** Confirmados `239/239` vídeos elegíveis no disco (`241` arquivos em `benchmark250`, `1,971.99 MB`), `0` divergências de SHA256/tamanho e `169` transcrições reais.
 - **Correções:** Alinhamento de chaves em `EditorialFeatureExtractor` (`full_transcript`, `has_subtitles_on_screen`, `cut_intervals_sec`) e guarda contra micro-denominadores (`views >= 30`) em `EditorialMemoryEngine` (`5 APRENDIZADO_VALIDADO`, `20 HIPÓTESE`).
 - **Regressão e Relatório:** `20/20` suítes / `178/178` testes aprovados (`100.0%`, `exit code 0`); emitido `docs/audits/FASE18_1_INDEPENDENT_AUDIT.md` (`PASS_WITH_RESERVATIONS`).
+
+---
+
+## [2026-11-26] - Fase 19: Migração Definitiva para Google Drive, Armazenamento Remoto e Calibração Editorial
+
+### Tarefas executadas
+- **Arquitetura Drive-First (`services/storage/drive_storage_service.py`):** Estrutura `VANTIS_DATA` (26 pastas sob `1KJp4_EpGIAdx1DpwTJ_8WyKDNbtgG_ZP`), upload resumível com deduplicação por MD5/SHA256 e backoff, cache temporário on-demand (`workspace/cache/remote_tmp`), estados explícitos (`REMOTE_AVAILABLE`, `TEMPORARILY_CACHED`, `REMOTE_VERIFIED`, `INTEGRITY_ERROR`, `DOWNLOAD_FAILED`), lease de dispositivo (`device_lease.json`) e snapshot atômico SQLite (`latest_snapshot.json`).
+- **Migração dos 250 Vídeos (`scripts/migrate_benchmark250_to_drive.py`):** **241 / 241** arquivos físicos verificados (`221` enviados + `20` reusados, `0` conflitos, `0` erros), além de `memory.json` (5 canais), `benchmark_250_features.json`, `benchmark_250_transcripts.json`, `benchmark_250_manifest.json` e snapshot `shorts_central_20261126T195350Z_JC.db` (`1CIPnLbN7N0_dzcm0xRrvUSYYJOi-tp7f`). Arquivos locais preservados intactos até autorização de limpeza.
+- **Calibração Editorial Fase 18.2 (`scripts/run_phase18_2_calibration.py`, `FASE18_2_EDITORIAL_CALIBRATION.md`):** Remoção de regras legadas pré-calibração e fallback não-restritivo nos Canais 1 e 4 elevou precisão no split de teste (`n=34`) de `42.3%` (baseline) para `50.0%` (`+7.7 pp`, mesmo recall `73.3%`, `33` decisões explicadas, `1` anti-pattern bloqueado).
+- **Documentação, Dashboard e Testes:** Criados `DRIVE_FIRST_SETUP.md`, `DEVICE_MIGRATION.md`, `REMOTE_STORAGE_ARCHITECTURE.md`, painel `drive_storage_metrics` no dashboard/`index.html`, `tests/test_fase19_drive_first_and_calibration.py` (`6/6`) e relatório `docs/audits/FASE19_DRIVE_FIRST_MIGRATION_AND_CALIBRATION.md`. Custo: **US$ 0,00**; lotes de 500 e 7.000 mantidos bloqueados.

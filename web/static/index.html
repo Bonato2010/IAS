@@ -767,6 +767,27 @@
         </div>
       </div>
 
+      <!-- ARMAZENAMENTO DRIVE-FIRST & CALIBRAÇÃO (FASE 19) -->
+      <div class="panel" style="margin-bottom:16px; border: 1px solid rgba(56, 189, 248, 0.3);">
+        <div class="panel-header">
+          <div>
+            <span class="panel-title"><i class="fa-brands fa-google-drive" style="color:var(--accent-cyan);"></i> Armazenamento Drive-First & Calibração Editorial (Fase 19)</span>
+            <div style="font-size:0.78rem; color:var(--text-tertiary); margin-top:2px;">
+              Google Drive como fonte permanente | Cache temporário efêmero | <span id="drv-device-label">Dispositivo: —</span>
+            </div>
+          </div>
+          <span class="badge badge-info" id="drv-sync-badge">Sync: —</span>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px;">
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Vídeos no Drive [MEDIDO]</div><strong id="drv-videos">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Em Cache Temp. [MEDIDO]</div><strong id="drv-cached">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Espaço Drive [MEDIDO]</div><strong id="drv-space">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Migrados / Pend.</div><strong id="drv-mig-pend">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Falhas Integr. / Diverg.</div><strong id="drv-int-div">—</strong></div>
+          <div style="padding:8px 10px; background:var(--bg-surface-elevated); border-radius:4px;"><div style="font-size:0.72rem; color:var(--text-tertiary);">Calibração [MEDIDO]</div><strong id="drv-cal" style="color:var(--accent-emerald);">—</strong></div>
+        </div>
+      </div>
+
       <!-- BIBLIOTECA DE CONHECIMENTO EDITORIAL -->
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-header">
@@ -2014,6 +2035,17 @@
         if (document.getElementById('p18-est-500')) document.getElementById('p18-est-500').innerText = `${p18.future_batch_500_hours_estimate ?? 0} h`;
         if (document.getElementById('p18-retention-status')) document.getElementById('p18-retention-status').innerText = p18.youtube_retention_curves_status || 'NÃO_VERIFICADO';
         if (document.getElementById('p18-progress-badge')) document.getElementById('p18-progress-badge').innerText = `Progresso: ${p18.batch_progress_pct ?? 0}% (Falha: ${p18.failure_rate_pct ?? 0}%)`;
+
+        // 4d. Telemetria Drive-First (Fase 19)
+        const drv = data.drive_storage_metrics || {};
+        if (document.getElementById('drv-videos')) document.getElementById('drv-videos').innerText = (drv.videos_in_drive ?? 0).toLocaleString();
+        if (document.getElementById('drv-cached')) document.getElementById('drv-cached').innerText = (drv.videos_temporarily_cached ?? 0).toLocaleString();
+        if (document.getElementById('drv-space')) document.getElementById('drv-space').innerText = `${drv.drive_space_used_mb ?? 0} MB`;
+        if (document.getElementById('drv-mig-pend')) document.getElementById('drv-mig-pend').innerText = `${drv.files_migrated ?? 0} / ${drv.files_pending ?? 0}`;
+        if (document.getElementById('drv-int-div')) document.getElementById('drv-int-div').innerText = `${drv.integrity_failures ?? 0} / ${drv.db_manifest_divergences ?? 0}`;
+        if (document.getElementById('drv-cal')) document.getElementById('drv-cal').innerText = drv.editorial_calibration_status || 'NÃO_VERIFICADO';
+        if (document.getElementById('drv-sync-badge')) document.getElementById('drv-sync-badge').innerText = `Sync: ${drv.sync_status || '—'}`;
+        if (document.getElementById('drv-device-label')) document.getElementById('drv-device-label').innerText = `Dispositivo: ${drv.authorized_device || '—'}`;
 
         // 5. Tabelas de Conhecimento e Experimentos
         await loadLearningKnowledge();
