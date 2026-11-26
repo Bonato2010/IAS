@@ -477,8 +477,8 @@ def list_podcast_cuts(status: Optional[str] = None, limit: int = 50):
             if d.get("agent_evaluations"):
                 try:
                     d["agent_evaluations"] = json.loads(d["agent_evaluations"])
-                except Exception:
-                    pass
+                except (json.JSONDecodeError, TypeError) as e:
+                    print(f"[WebApp] Aviso: agent_evaluations inválido no corte {d.get('id')}: {e}")
             rows.append(d)
         return rows
 
@@ -1509,6 +1509,16 @@ def promote_candidate_route(source_id: str):
         return learning_system.promote_to_learning_candidate(source_id=source_id)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/learning/recommendations/{channel_id}")
+def get_channel_recommendations_route(channel_id: int):
+    """Retorna recomendações editoriais baseadas na memória persistente isolada do canal."""
+    from services.orchestration.vantis_core_pipeline import VantisCorePipeline
+    pipe = VantisCorePipeline(db_path=learning_system.db_path)
+    mem = learning_system.get_channel_editorial_memory(channel_id)
+    sample_feats = {"cuts_count": 2, "has_narration": False, "hook_type": "NOT_AVAILABLE", "narrative_progression": "NOT_AVAILABLE", "audio_visual_relation": "music_or_sfx_without_narration"}
+    recs = pipe.generate_recommendations_from_memory(channel_id, sample_feats)
+    return {"channel_id": channel_id, "knowledge_count": mem.get("knowledge_count", 0), "recommendations": recs}
 
 # Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"

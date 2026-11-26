@@ -118,8 +118,8 @@ class CentralMemory:
                 d = dict(r)
                 try:
                     d["pattern_data"] = json.loads(d["pattern_data"])
-                except Exception:
-                    pass
+                except (json.JSONDecodeError, TypeError) as e:
+                    print(f"[CentralMemory] Aviso: pattern_data inválido no nó {d.get('id')}: {e}")
                 nodes.append(d)
             return nodes
 
@@ -161,8 +161,8 @@ class CentralMemory:
                     if d.get(f):
                         try:
                             d[f] = json.loads(d[f])
-                        except Exception:
-                            pass
+                        except (json.JSONDecodeError, TypeError) as e:
+                            print(f"[CentralMemory] Aviso: JSON inválido em {f} (decisão {d.get('id')}): {e}")
                 results.append(d)
             return results
 

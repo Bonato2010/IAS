@@ -182,3 +182,13 @@
 - **Migração dos 250 Vídeos (`scripts/migrate_benchmark250_to_drive.py`):** **241 / 241** arquivos físicos verificados (`221` enviados + `20` reusados, `0` conflitos, `0` erros), além de `memory.json` (5 canais), `benchmark_250_features.json`, `benchmark_250_transcripts.json`, `benchmark_250_manifest.json` e snapshot `shorts_central_20261126T195350Z_JC.db` (`1CIPnLbN7N0_dzcm0xRrvUSYYJOi-tp7f`). Arquivos locais preservados intactos até autorização de limpeza.
 - **Calibração Editorial Fase 18.2 (`scripts/run_phase18_2_calibration.py`, `FASE18_2_EDITORIAL_CALIBRATION.md`):** Remoção de regras legadas pré-calibração e fallback não-restritivo nos Canais 1 e 4 elevou precisão no split de teste (`n=34`) de `42.3%` (baseline) para `50.0%` (`+7.7 pp`, mesmo recall `73.3%`, `33` decisões explicadas, `1` anti-pattern bloqueado).
 - **Documentação, Dashboard e Testes:** Criados `DRIVE_FIRST_SETUP.md`, `DEVICE_MIGRATION.md`, `REMOTE_STORAGE_ARCHITECTURE.md`, painel `drive_storage_metrics` no dashboard/`index.html`, `tests/test_fase19_drive_first_and_calibration.py` (`6/6`) e relatório `docs/audits/FASE19_DRIVE_FIRST_MIGRATION_AND_CALIBRATION.md`. Custo: **US$ 0,00**; lotes de 500 e 7.000 mantidos bloqueados.
+
+---
+
+## [2026-11-26] - Fase 20: Auditoria Operacional Total, Correção de Gargalos e Funcionamento End-to-End
+
+### Tarefas executadas
+- **Auditoria Operacional:** `0` erros de importação, `92` rotas FastAPI ativas, `26` chamadas do frontend validadas, e correção de `except Exception: pass` críticos em `memory/central_memory.py` e `web/app.py`.
+- **Pipeline Integrado (`services/orchestration/vantis_core_pipeline.py`):** Criado `VantisCorePipeline` unificando as 16 etapas em máquina de estados explícita e conectando `generate_recommendations_from_memory` ao endpoint `GET /api/learning/recommendations/{channel_id}`.
+- **Execução Real E2E:** Processados `5/5` Shorts reais (1 por canal) até `COMPLETED` (`docs/audits/phase20_e2e_sample_5.json`).
+- **Regressão e Relatório:** Adicionada `tests/test_fase20_operational_e2e.py` e emitido `docs/audits/FASE20_OPERATIONAL_AUDIT.md` (`OPERATIONAL_WITH_RESERVATIONS`). Custo: **US$ 0,00**.
