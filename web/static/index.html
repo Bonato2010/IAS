@@ -2746,9 +2746,13 @@
         const data = await res.json();
         const pkgs = data.packages || [];
         if (!pkgs.length) { box.innerText = 'Nenhum pacote gerado ainda.'; return; }
-        box.innerHTML = pkgs.map(p => `
+        box.innerHTML = pkgs.map(p => {
+          const scenes = p.package?.audiovisual_plan?.scenes || [];
+          const readyScenes = scenes.filter(s => s.media_asset_status === 'ASSET_READY').length;
+          const prepStage = p.status === 'APPROVED_FOR_PRODUCTION' ? 'Pacote Aprovado' : (readyScenes === scenes.length && scenes.length > 0 ? 'Pacote Preparado' : 'Assets Pendentes');
+          return `
           <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.06);">
-            <span><strong>#${p.id} v${p.version}</strong> [Ch${p.channel_id}] ${p.theme} — <span class="badge">${p.status}</span></span>
+            <span><strong>#${p.id} v${p.version}</strong> [Ch${p.channel_id}] ${p.theme} — <span class="badge">${p.status}</span> <small style="opacity:0.75;">(${prepStage} | ${readyScenes}/${scenes.length} assets)</small></span>
             <span style="display:flex; gap:6px; flex-wrap:wrap;">
               <button class="btn btn-sm" onclick="viewProdPackage(${p.id})">Ver</button>
               <button class="btn btn-sm" onclick="duplicateProdPackage(${p.id})">Duplicar</button>
@@ -2757,7 +2761,8 @@
               <button class="btn btn-sm btn-danger" onclick="rejectProdPackage(${p.id})">Rejeitar</button>
               <button class="btn btn-sm" onclick="renderProdPackage(${p.id})">Renderizar</button>
             </span>
-          </div>`).join('');
+          </div>`;
+        }).join('');
       } catch (e) { box.innerText = 'Erro ao carregar pacotes.'; }
     }
     async function generateProdPackage() {
@@ -2957,21 +2962,30 @@
         const jobs = data.jobs || [];
         if (!jobs.length) { box.innerText = 'Nenhuma renderização executada ainda.'; return; }
         const defectLabels = ['narration','pronunciation','sync','subtitles','cuts','images','rhythm','audiovisual_quality'];
-        box.innerHTML = jobs.map(j => `
+        box.innerHTML = jobs.map(j => {
+          const techValidated = Boolean(j.output_mp4_path && j.sha256 && j.measured_lufs !== null && j.measured_lufs !== undefined);
+          const editorialApproved = j.status === 'APPROVED_AFTER_REVIEW' || j.status === 'COMPLETED';
+          return `
           <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.08);">
             <strong>Job #${j.id}</strong> (Pkg #${j.package_id} Ch${j.channel_id}) — <span class="badge">${j.status}</span>
+            <small style="opacity:0.8; margin-left:6px;">
+              Renderizado: ${j.output_mp4_path ? 'Sim' : 'Não'} |
+              Validado Tecnicamente: ${techValidated ? 'Sim' : 'Não'} |
+              Aprovado Após Revisão: ${editorialApproved ? 'Sim' : 'Não'}
+            </small>
             ${j.output_mp4_path ? `| ${j.duration_sec}s | ${j.resolution} | ${j.measured_lufs} LUFS | SHA256: <code>${(j.sha256||'').slice(0,12)}...</code> | <a href="/api/production/renders/${j.id}/file" target="_blank">Abrir MP4</a>
             <div style="margin-top:6px;"><video controls preload="metadata" style="max-height:240px; border-radius:6px;" src="/api/production/renders/${j.id}/file"></video></div>` : `| ${j.error_message || ''}`}
             ${j.status === 'READY_FOR_REVIEW' || j.status === 'CHANGES_REQUESTED' ? `
               <div style="margin-top:6px; font-size:12px;">
                 <div>Defeitos observados: ${defectLabels.map(d => `<label style="margin-right:8px;"><input type="checkbox" class="defect-chk-${j.id}" value="${d}"> ${d}</label>`).join('')}</div>
                 <input id="review-notes-${j.id}" class="form-input" style="width:65%; margin:4px 0;" placeholder="Notas da revisão humana (pronúncia, corte, legenda, ritmo...)" value="${(j.review_notes || '').replace(/"/g, '&quot;')}" />
-                <button class="btn btn-sm btn-primary" onclick="submitRenderReview(${j.id}, 'APPROVE_FINAL')">Aprovar Final</button>
+                <button class="btn btn-sm btn-primary" onclick="submitRenderReview(${j.id}, 'APPROVE_AFTER_REVIEW')">Aprovar Após Revisão</button>
                 <button class="btn btn-sm" onclick="submitRenderReview(${j.id}, 'REQUEST_CHANGES')">Solicitar Correções</button>
                 <button class="btn btn-sm btn-danger" onclick="submitRenderReview(${j.id}, 'REJECT')">Rejeitar Vídeo</button>
               </div>` : ''}
             ${j.review_decision ? `<div style="margin-top:4px; font-size:12px; opacity:0.85;">Revisão: <strong>${j.review_decision}</strong> ${(j.review_defects||[]).length ? `| Defeitos: ${j.review_defects.join(', ')}` : ''} ${j.review_notes ? `| ${j.review_notes}` : ''}</div>` : ''}
-          </div>`).join('');
+          </div>`;
+        }).join('');
       } catch (e) { box.innerText = 'Erro ao carregar renders.'; }
     }
   </script>

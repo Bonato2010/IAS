@@ -225,3 +225,9 @@
 - **Aquisição & Biblioteca (`services/production/asset_intelligence.py`):** `acquire_wikimedia_asset`, colunas `asset_name`, `author`, `attribution_text`, `acquired_at`, remoção de associação (`unassign_asset_from_scene`) e painel de busca/download no dashboard.
 - **Primeiro Vídeo Real (`render_jobs.id=1`, Pacote `#7`, Canal 4):** Aprovado explicitamente pelo usuário; `vantis_ch4_pkg7_job1.mp4` (`1080x1920`, `49.4s`, `6,039,692 bytes`, `h264/aac`, `-14.5 LUFS`, `40` legendas, `SHA256=6e0e3380de6fe509bcf0bc0f2c755ad3bae89276c5b289dbb01f678be657caf9`), mantido em `READY_FOR_REVIEW`.
 - **Testes:** `test_fase25_asset_acquisition_and_render.py` (`6/6`, `52.96s`) + regressão `27/27` suítes (`219/219`, `100.0%`, `828.61s`). Relatório: `docs/audits/FASE25_ASSET_ACQUISITION_AND_FIRST_RENDER.md`. Custo: **US$ 0,00**.
+
+### [2026-11-27] Fase 26 — Validação Editorial do Primeiro Render e Replicação Controlada nos 5 Canais
+- **Auditoria & Re-render Pacote `#7`:** Defeito visual na Cena 2 do `job1` registrado e corrigido; novo MP4 físico `vantis_ch4_pkg7_job2.mp4` (`1080x1920`, `49.4s`, `6,288,263 bytes`, `-14.5 LUFS`, `SHA256=7e9bd957f558ecab88f182a65f5751ba094634ea84060b90a2cec23bcf69d844`) em `READY_FOR_REVIEW`.
+- **Correções Técnicas:** Vozes Edge-TTS ativas nos 5 canais + retry (`tts_engine.py`), `APPROVED_AFTER_REVIEW` (`package_renderer.py`), clareza de estados no dashboard e desempate por recência em `vector_memory.py`.
+- **Piloto 5 Canais:** `#7` (`6/6`, renderizado), `#1` (`4/6`, bloqueado), `#3` (`2/6`, bloqueado), `#5` (`0/6`, bloqueado), `#9` (`0/6`, bloqueado).
+- **Testes:** `test_fase26_multichannel_validation.py` (`5/5`, `104.02s`) + regressão `28/28` suítes (`224/224`, `100.0%`, `1018.89s`). Relatório: `docs/audits/FASE26_MULTICHANNEL_VALIDATION.md`. Custo: **US$ 0,00**.

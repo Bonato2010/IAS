@@ -203,6 +203,7 @@ class VectorMemoryService:
                 "similarity_score": round(max(0.0, min(1.0, (sim + 1.0) / 2.0)), 4)
             })
 
+        scored.reverse()
         scored.sort(key=lambda x: x["similarity_score"], reverse=True)
         return scored[:top_k]
 

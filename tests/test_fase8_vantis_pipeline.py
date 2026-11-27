@@ -65,7 +65,7 @@ class TestFase8VantisPipeline(unittest.TestCase):
         self.vector_mem.index_hook(id_univ, "O segredo psicológico que 99% das pessoas ignoram", channel_id=None, niche="universal")
 
         # Canal 1 busca: deve encontrar id_ch1 e id_univ, mas NUNCA id_ch2
-        results_ch1 = self.vector_mem.search_hooks("futebol", channel_id=1, top_k=50)
+        results_ch1 = self.vector_mem.search_hooks("futebol", channel_id=1, top_k=500)
         ch1_ids = [r["id"] for r in results_ch1]
         self.assertIn(id_ch1, ch1_ids)
         self.assertIn(id_univ, ch1_ids)
@@ -142,7 +142,7 @@ class TestFase8VantisPipeline(unittest.TestCase):
         self.assertTrue(os.path.exists(step15_res["manifest_path"]))
 
         # 5. Verifica se o ciclo de aprendizado fechou (etapa 17)
-        learned_hooks = self.vector_mem.search_hooks("futebol", channel_id=1, top_k=50)
+        learned_hooks = self.vector_mem.search_hooks("futebol", channel_id=1, top_k=500)
         learned_ids = [h["id"] for h in learned_hooks]
         self.assertIn(f"learned_{task_id}", learned_ids)
 

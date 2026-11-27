@@ -19,13 +19,18 @@ logger = logging.getLogger("TTSNarrationEngine")
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 WORKSPACE_AUDIO = BASE_DIR / "workspace" / "audio"
 
-# Vozes padrão mapeadas por canal piloto
+# Vozes padrão mapeadas por canal piloto (somente vozes pt-BR ativas no Edge-TTS)
 DEFAULT_CHANNEL_VOICES = {
-    1: {"voice": "pt-BR-AntonioNeural", "rate": "+15%", "pitch": "+0Hz"},
-    2: {"voice": "pt-BR-JulioNeural", "rate": "-5%", "pitch": "-5Hz"},
-    3: {"voice": "pt-BR-FabioNeural", "rate": "+10%", "pitch": "+2Hz"},
+    1: {"voice": "pt-BR-AntonioNeural", "rate": "+12%", "pitch": "+0Hz"},
+    2: {"voice": "pt-BR-AntonioNeural", "rate": "-6%", "pitch": "-4Hz"},
+    3: {"voice": "pt-BR-ThalitaMultilingualNeural", "rate": "+8%", "pitch": "+2Hz"},
     4: {"voice": "pt-BR-FranciscaNeural", "rate": "-2%", "pitch": "+0Hz"},
-    5: {"voice": "pt-BR-ValerioNeural", "rate": "+5%", "pitch": "-3Hz"},
+    5: {"voice": "pt-BR-AntonioNeural", "rate": "+4%", "pitch": "-2Hz"},
+}
+ACTIVE_PT_BR_VOICES = {
+    "pt-BR-AntonioNeural",
+    "pt-BR-FranciscaNeural",
+    "pt-BR-ThalitaMultilingualNeural",
 }
 FALLBACK_VOICE = "pt-BR-AntonioNeural"
 
@@ -44,8 +49,11 @@ class TTSNarrationService:
             settings = self.channel_manager.get_channel_settings(channel_id)
             if settings and "voice_profile" in settings:
                 vp = settings["voice_profile"]
+                voice_id = vp.get("voice_id", FALLBACK_VOICE)
+                if voice_id not in ACTIVE_PT_BR_VOICES:
+                    voice_id = FALLBACK_VOICE
                 return {
-                    "voice": vp.get("voice_id", FALLBACK_VOICE),
+                    "voice": voice_id,
                     "rate": vp.get("rate", "+0%"),
                     "pitch": vp.get("pitch", "+0Hz")
                 }
@@ -165,17 +173,30 @@ class TTSNarrationService:
         mode = "real_neural"
 
         if not force_offline:
-            try:
-                # Tenta geração real via Edge-TTS
-                boundaries = asyncio.run(self._generate_edge_tts(
-                    text=text,
-                    voice=selected_voice,
-                    rate=selected_rate,
-                    pitch=selected_pitch,
-                    output_file=output_path
-                ))
-            except Exception as e:
-                logger.warning(f"Edge-TTS falhou ({e}). Recorrendo ao gerador sintético de resiliência.")
+            import time as _time
+            last_err = None
+            attempts = [
+                (selected_voice, selected_rate, selected_pitch),
+                (selected_voice, selected_rate, selected_pitch),
+                (FALLBACK_VOICE, "+0%", "+0Hz"),
+            ]
+            for idx_att, (v_try, r_try, p_try) in enumerate(attempts):
+                try:
+                    boundaries = asyncio.run(self._generate_edge_tts(
+                        text=text,
+                        voice=v_try,
+                        rate=r_try,
+                        pitch=p_try,
+                        output_file=output_path
+                    ))
+                    last_err = None
+                    break
+                except Exception as e:
+                    last_err = e
+                    if idx_att < len(attempts) - 1:
+                        _time.sleep(0.8)
+            if last_err is not None:
+                logger.warning(f"Edge-TTS falhou ({last_err}). Recorrendo ao gerador sintético de resiliência.")
                 mode = "mock_fallback"
                 wav_path = self.output_dir / f"{task_id}.wav"
                 boundaries = self._generate_mock_audio(wav_path, text)

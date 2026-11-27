@@ -178,6 +178,7 @@ class PackageRendererService:
             raise ValueError(f"Job #{job_id} em estado '{job['status']}' não está aguardando revisão final.")
 
         allowed = {
+            "APPROVE_AFTER_REVIEW": "APPROVED_AFTER_REVIEW",
             "APPROVE_FINAL": "COMPLETED",
             "REQUEST_CHANGES": "CHANGES_REQUESTED",
             "REJECT": "REJECTED",
