@@ -698,17 +698,60 @@ class EditorialProductionEngine:
                 sc["asset_id"] = ast["id"]
                 sc["asset_path"] = ast["file_path"]
                 sc["license_status"] = ast["license_status"]
+                sc["attribution_text"] = ast.get("attribution_text") or ""
                 sc["media_asset_status"] = "ASSET_READY"
                 found = True
                 break
         if not found:
             raise ValueError(f"Cena {scene_index} não encontrada no pacote {package_id}.")
 
+        attrs = [s.get("attribution_text") for s in scenes if s.get("attribution_text")]
+        content["production_checklist"]["required_attributions"] = attrs
+
         hist = pkg["version_history"]
         hist.append({
             "version": pkg["version"],
             "status": pkg["status"],
             "action": f"ASSIGN_ASSET_SCENE_{scene_index}_ASSET_{asset_id}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE editorial_production_packages SET package_json = ?, version_history_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (json.dumps(content, ensure_ascii=False), json.dumps(hist, ensure_ascii=False), package_id),
+            )
+            conn.commit()
+        validation = self.validate_package_and_store(package_id)
+        return {"package": self.get_package(package_id), "validation": validation}
+
+    def unassign_asset_from_scene(self, package_id: int, scene_index: int) -> Dict[str, Any]:
+        """Remove associação incorreta da cena e retorna para ASSET_NEEDED."""
+        pkg = self.get_package(package_id)
+        if not pkg:
+            raise ValueError(f"Pacote {package_id} não encontrado.")
+        content = pkg["package"]
+        scenes = content.get("audiovisual_plan", {}).get("scenes", [])
+        found = False
+        for sc in scenes:
+            if int(sc.get("scene_index", 0)) == int(scene_index):
+                sc.pop("asset_id", None)
+                sc.pop("asset_path", None)
+                sc.pop("attribution_text", None)
+                sc["license_status"] = "PENDING"
+                sc["media_asset_status"] = "ASSET_NEEDED"
+                found = True
+                break
+        if not found:
+            raise ValueError(f"Cena {scene_index} não encontrada no pacote {package_id}.")
+
+        content["production_checklist"]["required_attributions"] = [
+            s.get("attribution_text") for s in scenes if s.get("attribution_text")
+        ]
+        hist = pkg["version_history"]
+        hist.append({
+            "version": pkg["version"],
+            "status": pkg["status"],
+            "action": f"UNASSIGN_ASSET_SCENE_{scene_index}",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
         with self._get_conn() as conn:

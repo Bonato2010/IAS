@@ -220,3 +220,8 @@
 - **Asset Intelligence (`services/production/asset_intelligence.py` + `011_asset_intelligence_and_validation.sql`):** Biblioteca `production_assets` com `ffprobe`, `SHA256`, deduplicação, classificação conservadora de licença (`LICENSE_UNVERIFIED` / `VERIFIED_*`), bloqueio de `benchmark250` e `search_wikimedia_commons`.
 - **Roteiros & Validador (`services/production/script_quality_engine.py`):** Roteiros completos sem `None`/repetições, fontes obrigatórias em Canais 1/2/4 e `EditorialValidator` (9 verificações). Piloto nos 10 pacotes: todos elevados a `88.9%` (`ASSETS_INCOMPLETE`, `READY_FOR_REVIEW`).
 - **Testes:** `test_fase24_asset_intelligence_and_scripts.py` (`7/7`, `5.90s`) + regressão `26/26` suítes (`213/213`, `100.0%`, `681.15s`). Relatório: `docs/audits/FASE24_ASSET_INTELLIGENCE_AND_SCRIPT_QUALITY.md`. Custo: **US$ 0,00**.
+
+### [2026-11-26] Fase 25 — Aquisição Controlada de Assets, Licenciamento e Primeiro Render de Produção
+- **Aquisição & Biblioteca (`services/production/asset_intelligence.py`):** `acquire_wikimedia_asset`, colunas `asset_name`, `author`, `attribution_text`, `acquired_at`, remoção de associação (`unassign_asset_from_scene`) e painel de busca/download no dashboard.
+- **Primeiro Vídeo Real (`render_jobs.id=1`, Pacote `#7`, Canal 4):** Aprovado explicitamente pelo usuário; `vantis_ch4_pkg7_job1.mp4` (`1080x1920`, `49.4s`, `6,039,692 bytes`, `h264/aac`, `-14.5 LUFS`, `40` legendas, `SHA256=6e0e3380de6fe509bcf0bc0f2c755ad3bae89276c5b289dbb01f678be657caf9`), mantido em `READY_FOR_REVIEW`.
+- **Testes:** `test_fase25_asset_acquisition_and_render.py` (`6/6`, `52.96s`) + regressão `27/27` suítes (`219/219`, `100.0%`, `828.61s`). Relatório: `docs/audits/FASE25_ASSET_ACQUISITION_AND_FIRST_RENDER.md`. Custo: **US$ 0,00**.

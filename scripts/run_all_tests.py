@@ -42,7 +42,8 @@ TEST_FILES = [
     "test_fase21_editorial_production.py",
     "test_fase22_audiovisual_rendering.py",
     "test_fase23_production_review_flow.py",
-    "test_fase24_asset_intelligence_and_scripts.py"
+    "test_fase24_asset_intelligence_and_scripts.py",
+    "test_fase25_asset_acquisition_and_render.py"
 ]
 
 def run_test_suite():

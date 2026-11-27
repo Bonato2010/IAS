@@ -2800,9 +2800,15 @@
         <button class="btn btn-sm" onclick="saveHookEdit(${p.id})">Salvar Roteiro Editado</button><br><br>
         <strong>Narração Completa:</strong> <div style="opacity:0.9; margin:4px 0 8px 0;">${pkg.audio_plan?.narration_text || pkg.script?.full_narration || '—'}</div>
         <strong>Cenas, Licenciamento & Assets Necessários (${scenes.length}):</strong>
+        <div style="margin:6px 0; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <input id="wm-query-${p.id}" class="form-input" style="width:260px;" placeholder="Buscar no Wikimedia Commons (ex: night sky stars)" />
+          <button class="btn btn-sm" onclick="searchWikimediaForPkg(${p.id}, ${p.channel_id})">Pesquisar Wikimedia</button>
+        </div>
+        <div id="wm-results-${p.id}" style="margin:4px 0 8px 0; font-size:12px;"></div>
         <ul style="margin:4px 0 8px 18px;">
-          ${scenes.map(s => `<li><strong>Cena ${s.scene_index} (${s.stage}, ${s.estimated_duration_sec}s)</strong> — <span class="badge">${s.media_asset_status || 'ASSET_NEEDED'}</span> | Licença: <code>${s.license_status || 'PENDING'}</code> ${s.asset_path ? `[<code>${s.asset_path}</code>]` : ''} : ${s.visual_description || ''} <button class="btn btn-sm" onclick="promptAssignAsset(${p.id}, ${s.scene_index})">Associar Asset ID</button></li>`).join('')}
+          ${scenes.map(s => `<li><strong>Cena ${s.scene_index} (${s.stage}, ${s.estimated_duration_sec}s)</strong> — <span class="badge">${s.media_asset_status || 'ASSET_NEEDED'}</span> | Licença: <code>${s.license_status || 'PENDING'}</code> ${s.asset_path ? `[<code>${s.asset_path}</code>]` : ''} : ${s.visual_description || ''} <button class="btn btn-sm" onclick="promptAssignAsset(${p.id}, ${s.scene_index})">Associar Asset ID</button> ${s.asset_id ? `<button class="btn btn-sm btn-danger" onclick="unassignAssetFromScene(${p.id}, ${s.scene_index})">Remover</button>` : ''}</li>`).join('')}
         </ul>
+        <strong>Atribuições Obrigatórias:</strong> ${(pkg.production_checklist?.required_attributions || []).join(' • ') || 'Nenhuma pendente'}<br>
         <strong>Áudio:</strong> ${pkg.audio_plan?.tone || ''} | ${pkg.audio_plan?.music_ambience_royalty_free || ''}<br>
         <strong>Recomendações Editoriais:</strong> ${Array.isArray(recs) && recs.length ? recs.join(' • ') : (typeof recs === 'string' ? recs : 'Nenhuma adicional')}<br>
         <strong>Memórias Aplicadas:</strong> ${mems.map(m => `#${m.knowledge_id} (${m.classification})`).join(', ') || 'Nenhuma'}`;
@@ -2847,6 +2853,42 @@
       if (!res.ok) { const e = await res.json(); alert(e.detail || 'Erro ao associar ativo.'); return; }
       await viewProdPackage(pkgId);
       await validateProdPackage(pkgId);
+    }
+    async function unassignAssetFromScene(pkgId, sceneIdx) {
+      await fetch(`/api/production/packages/${pkgId}/scenes/${sceneIdx}/unassign-asset`, {method: 'POST'});
+      await viewProdPackage(pkgId);
+      await validateProdPackage(pkgId);
+    }
+    window._wmCandidates = {};
+    async function searchWikimediaForPkg(pkgId, channelId) {
+      const q = (document.getElementById(`wm-query-${pkgId}`)?.value || '').trim();
+      const box = document.getElementById(`wm-results-${pkgId}`);
+      if (!q || !box) return;
+      box.innerText = 'Pesquisando Wikimedia Commons...';
+      const res = await fetch('/api/production/assets/search-wikimedia', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: q, limit: 6})
+      });
+      const data = await res.json();
+      const items = data.results || [];
+      if (!items.length) { box.innerText = 'Nenhum candidato encontrado.'; return; }
+      window._wmCandidates[pkgId] = items;
+      box.innerHTML = items.map((c, idx) => `
+        <div style="padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+          <strong>${c.title}</strong> | ${c.width}x${c.height} | Autor: ${c.author} | Licença: <span class="badge">${c.license_status}</span>
+          ${c.eligible ? `<button class="btn btn-sm btn-primary" onclick="acquireWikimediaCandidate(${pkgId}, ${channelId}, ${idx})">Baixar Permitido</button>` : '<span style="opacity:0.7;">(Inelegível/Licença não verificada)</span>'}
+        </div>`).join('');
+    }
+    async function acquireWikimediaCandidate(pkgId, channelId, idx) {
+      const cand = (window._wmCandidates[pkgId] || [])[idx];
+      if (!cand) return;
+      const res = await fetch('/api/production/assets/acquire-wikimedia', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({candidate: cand, channel_id: channelId, tags: ['wikimedia']})
+      });
+      const out = await res.json();
+      if (!res.ok) { alert(out.detail || 'Falha ao baixar ativo.'); return; }
+      alert(`Ativo #${out.id} (${out.asset_name}) baixado e verificado (${out.width}x${out.height}).`);
     }
     async function compareProdWithPrev(id) {
       const other = prompt('Informe o ID do outro pacote/versão para comparar:');

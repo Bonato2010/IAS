@@ -1687,6 +1687,30 @@ def assign_asset_to_package_scene(package_id: int, scene_index: int, payload: Di
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.post("/api/production/packages/{package_id}/scenes/{scene_index}/unassign-asset")
+def unassign_asset_from_package_scene(package_id: int, scene_index: int):
+    try:
+        return _get_prod_engine().unassign_asset_from_scene(package_id=package_id, scene_index=scene_index)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/production/assets/search-wikimedia")
+def search_wikimedia_assets(payload: Dict[str, Any]):
+    query = str(payload.get("query") or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Informe o termo de busca (query).")
+    return _get_asset_engine().search_wikimedia_commons(query=query, limit=int(payload.get("limit", 8)))
+
+@app.post("/api/production/assets/acquire-wikimedia")
+def acquire_wikimedia_asset(payload: Dict[str, Any]):
+    try:
+        candidate = payload.get("candidate") or {}
+        channel_id = int(payload.get("channel_id", 1))
+        tags = payload.get("tags") or []
+        return _get_asset_engine().acquire_wikimedia_asset(candidate=candidate, channel_id=channel_id, tags=tags)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"
 static_dir.mkdir(parents=True, exist_ok=True)
