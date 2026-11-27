@@ -1639,6 +1639,54 @@ def review_render_job(job_id: int, payload: Dict[str, Any]):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+def _get_asset_engine():
+    from services.production.asset_intelligence import AssetIntelligenceEngine
+    return AssetIntelligenceEngine(db_path=learning_system.db_path)
+
+@app.get("/api/production/assets")
+def list_production_assets(channel_id: Optional[int] = None, only_valid: bool = False, limit: int = 100):
+    return {"assets": _get_asset_engine().list_assets(channel_id=channel_id, only_valid=only_valid, limit=limit)}
+
+@app.post("/api/production/assets/register")
+def register_production_asset(payload: Dict[str, Any]):
+    try:
+        return _get_asset_engine().register_asset(
+            file_path=str(payload.get("file_path", "")),
+            origin=str(payload.get("origin", "manual")),
+            license_name=str(payload.get("license_name", "UNKNOWN")),
+            tags=payload.get("tags") or [],
+            authorized_channels=payload.get("authorized_channels") or [1, 2, 3, 4, 5],
+            source_url=payload.get("source_url"),
+            commercial_confirmed=bool(payload.get("commercial_confirmed", False)),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/production/packages/{package_id}/validate")
+def validate_production_package(package_id: int):
+    try:
+        return _get_prod_engine().validate_package_and_store(package_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.post("/api/production/packages/{package_id}/prepare-assets")
+def prepare_production_package_assets(package_id: int):
+    try:
+        return _get_prod_engine().prepare_package_assets(package_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.post("/api/production/packages/{package_id}/scenes/{scene_index}/assign-asset")
+def assign_asset_to_package_scene(package_id: int, scene_index: int, payload: Dict[str, Any]):
+    try:
+        return _get_prod_engine().assign_asset_to_scene(
+            package_id=package_id,
+            scene_index=scene_index,
+            asset_id=int(payload.get("asset_id", 0)),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"
 static_dir.mkdir(parents=True, exist_ok=True)

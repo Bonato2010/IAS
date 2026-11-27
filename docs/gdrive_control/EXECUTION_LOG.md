@@ -215,3 +215,8 @@
 - **Auditoria & Gate:** `10/10` pacotes da Fase 21 auditados (`READY_FOR_REVIEW`, `6/6` cenas `ASSET_NEEDED`, `0` aprovados automaticamente, `0` vídeos renderizados em produção por ausência de aprovação humana e assets físicos verificados).
 - **Fluxo Humano & Revisão Final:** Estados `CHANGES_REQUESTED` e `REJECTED` em `EditorialProductionEngine`; `submit_human_review()` em `PackageRendererService`; `POST /api/production/renders/{job_id}/review` em `web/app.py`; player `<video>`, checklist de defeitos e botões de aprovação/rejeição/alterações em `web/static/index.html`.
 - **Testes:** `test_fase23_production_review_flow.py` (`7/7`, `35.28s`) + regressão completa `25/25` suítes (`206/206`, `100.0%`, `587.19s`). Relatório: `docs/audits/FASE23_FIRST_REAL_PRODUCTION.md`. Custo: **US$ 0,00**.
+
+### [2026-11-26] Fase 24 — Asset Intelligence, Roteiros Completos e Preparação Automática para Produção
+- **Asset Intelligence (`services/production/asset_intelligence.py` + `011_asset_intelligence_and_validation.sql`):** Biblioteca `production_assets` com `ffprobe`, `SHA256`, deduplicação, classificação conservadora de licença (`LICENSE_UNVERIFIED` / `VERIFIED_*`), bloqueio de `benchmark250` e `search_wikimedia_commons`.
+- **Roteiros & Validador (`services/production/script_quality_engine.py`):** Roteiros completos sem `None`/repetições, fontes obrigatórias em Canais 1/2/4 e `EditorialValidator` (9 verificações). Piloto nos 10 pacotes: todos elevados a `88.9%` (`ASSETS_INCOMPLETE`, `READY_FOR_REVIEW`).
+- **Testes:** `test_fase24_asset_intelligence_and_scripts.py` (`7/7`, `5.90s`) + regressão `26/26` suítes (`213/213`, `100.0%`, `681.15s`). Relatório: `docs/audits/FASE24_ASSET_INTELLIGENCE_AND_SCRIPT_QUALITY.md`. Custo: **US$ 0,00**.

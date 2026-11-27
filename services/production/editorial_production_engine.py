@@ -19,6 +19,8 @@ if str(BASE_DIR) not in sys.path:
 
 from core.editorial_profiles import PROFILES_DEFINITIONS
 from services.learning.audiovisual_learning_system import AudiovisualLearningSystem
+from services.production.asset_intelligence import AssetIntelligenceEngine, VERIFIED_LICENSE_STATUSES
+from services.production.script_quality_engine import EditorialValidator, build_complete_script, clean_accidental_repetitions
 
 PRODUCTION_STATES = (
     "DRAFT",
@@ -159,6 +161,18 @@ class EditorialProductionEngine:
                     version_history_json TEXT DEFAULT '[]',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS editorial_validation_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    package_id INTEGER NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 1,
+                    classification TEXT NOT NULL,
+                    quality_score REAL NOT NULL DEFAULT 0.0,
+                    passed INTEGER NOT NULL DEFAULT 0,
+                    checks_json TEXT DEFAULT '{}',
+                    failures_json TEXT DEFAULT '[]',
+                    warnings_json TEXT DEFAULT '[]',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 """
             )
@@ -318,58 +332,45 @@ class EditorialProductionEngine:
             "content_goal": editorial_goal,
         }
 
-        # B. Roteiro Original (gancho, desenvolvimento, progressão, retenção, encerramento, CTA)
-        hook_line = (
-            f"Você sabia que por trás de {theme} existe um detalhe que quase ninguém percebe logo no início?"
-            if channel_id in (2, 4)
-            else (
-                f"Se você ainda erra em {theme}, esses próximos {int(dur)} segundos mudam seu jogo hoje."
-                if channel_id == 5
-                else (
-                    f"Presta atenção no que aconteceu em {theme} — isso muda tudo na hora!"
-                    if channel_id == 1
-                    else f"Sabe quando {theme} parece normal até dar tudo errado no segundo seguinte?"
-                )
-            )
+        # B. Roteiro Original Completo (gancho, contexto, desenvolvimento, clímax, encerramento, CTA)
+        script = build_complete_script(
+            channel_id=channel_id,
+            theme=theme,
+            target_duration_sec=dur,
+            channel_identity=ident,
+            mem_ctx=mem_ctx,
+            ref_info=ref_info,
         )
-        dev_line = (
-            f"Primeiro, observe o ponto central de {theme}: o contexto inicial cria a expectativa. "
-            f"Em seguida, entra a virada principal que explica o porquê real de {theme} funcionar assim na prática."
-        )
-        closing_line = f"No fim das contas, entender esse detalhe sobre {theme} muda completamente a leitura do todo."
-        cta_line = f"Comenta sua visão sobre {theme} e salva para revisar depois."
-
-        script = {
-            "hook": hook_line,
-            "development": dev_line,
-            "narrative_progression": ident["narrative_structure"],
-            "retention_moments": [
-                {"at_sec": round(dur * 0.1, 1), "technique": ident["hook_style"]},
-                {"at_sec": round(dur * 0.45, 1), "technique": "Quebra de padrão visual + dado/virada central"},
-                {"at_sec": round(dur * 0.8, 1), "technique": "Síntese conclusiva antes da chamada final"},
-            ],
-            "closing": closing_line,
-            "cta": cta_line,
-            "originality_note": "Roteiro original gerado sem cópia de falas ou identidade visual de terceiros.",
-        }
 
         # C. Plano Audiovisual (sempre marca ASSET_NEEDED quando mídia não existe localmente)
         scene_dur = round(dur / planned_cuts, 1)
         scenes = []
-        stage_labels = ["Abertura / Gancho", "Contextualização", "Virada Central", "Desenvolvimento", "Clímax / Prova", "Encerramento / CTA"]
+        stage_labels = ["Abertura / Gancho", "Contextualização", "Desenvolvimento", "Clímax / Virada", "Prova / Aplicação", "Encerramento / CTA"]
+        stage_cues = [
+            script["hook"][:90],
+            script["context"][:90],
+            script["development"][:90],
+            script["climax"][:90],
+            script["closing"][:90],
+            script["cta"][:90],
+        ]
         for i in range(planned_cuts):
             label = stage_labels[min(i, len(stage_labels) - 1)]
-            scenes.append({
+            cue_text = stage_cues[min(i, len(stage_cues) - 1)]
+            sc_obj = {
                 "scene_index": i + 1,
                 "stage": label,
-                "visual_description": f"{label} sobre '{theme}' seguindo estilo: {ident['visual_style']}.",
+                "visual_description": f"{label} ({ident['visual_style']}): {cue_text}",
                 "estimated_duration_sec": scene_dur,
                 "cut_cue": f"Corte seco aos {round((i + 1) * scene_dur, 1)}s",
                 "narrative_rhythm": ident["rhythm"],
                 "media_asset_status": "ASSET_NEEDED",
-                "narration_emphasis": i in (0, 2, planned_cuts - 1),
+                "license_status": "PENDING",
+                "narration_emphasis": i in (0, 3, planned_cuts - 1),
                 "transition": "cut_hard" if i < planned_cuts - 1 else "fade_out_audio",
-            })
+            }
+            sc_obj["media_requirements"] = AssetIntelligenceEngine.analyze_scene_requirements(sc_obj, channel_id, theme)
+            scenes.append(sc_obj)
 
         audiovisual_plan = {
             "total_scenes": len(scenes),
@@ -379,7 +380,7 @@ class EditorialProductionEngine:
         }
 
         # D. Plano de Áudio
-        full_narration = f"{hook_line} {dev_line} {closing_line} {cta_line}"
+        full_narration = script["full_narration"]
         audio_plan = {
             "narration_text": full_narration,
             "tone": ident["narration_tone"],
@@ -585,3 +586,190 @@ class EditorialProductionEngine:
             )
             conn.commit()
         return self.get_package(package_id)
+
+    def validate_package_and_store(self, package_id: int) -> Dict[str, Any]:
+        """Executa Validador Editorial Automático e persiste relatório explicável."""
+        pkg = self.get_package(package_id)
+        if not pkg:
+            raise ValueError(f"Pacote {package_id} não encontrado.")
+        report = EditorialValidator().validate_package(pkg)
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                INSERT INTO editorial_validation_reports (
+                    package_id, version, classification, quality_score, passed,
+                    checks_json, failures_json, warnings_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    package_id,
+                    int(pkg.get("version") or 1),
+                    report["classification"],
+                    float(report["quality_score"]),
+                    1 if report["passed"] else 0,
+                    json.dumps(report["checks"], ensure_ascii=False),
+                    json.dumps(report["failures"], ensure_ascii=False),
+                    json.dumps(report["warnings"], ensure_ascii=False),
+                ),
+            )
+            conn.commit()
+            report["report_id"] = cur.lastrowid
+        return report
+
+    def get_latest_validation_report(self, package_id: int) -> Optional[Dict[str, Any]]:
+        with self._get_conn() as conn:
+            r = conn.execute(
+                "SELECT * FROM editorial_validation_reports WHERE package_id = ? ORDER BY id DESC LIMIT 1",
+                (package_id,),
+            ).fetchone()
+        if not r:
+            return None
+        d = dict(r)
+        d["checks"] = _parse_json(d.pop("checks_json"), {})
+        d["failures"] = _parse_json(d.pop("failures_json"), [])
+        d["warnings"] = _parse_json(d.pop("warnings_json"), [])
+        d["passed"] = bool(d.get("passed"))
+        return d
+
+    def prepare_package_assets(self, package_id: int) -> Dict[str, Any]:
+        """Interpreta cenas, tenta associar ativos válidos/licenciados e mantém ASSET_NEEDED quando faltar mídia."""
+        pkg = self.get_package(package_id)
+        if not pkg:
+            raise ValueError(f"Pacote {package_id} não encontrado.")
+        aie = AssetIntelligenceEngine(db_path=str(self.db_path))
+        content = pkg["package"]
+        scenes = content.get("audiovisual_plan", {}).get("scenes", [])
+        updated_scenes, incompatibilities = aie.match_assets_for_scenes(
+            channel_id=int(pkg["channel_id"]),
+            theme=pkg["theme"],
+            scenes=scenes,
+        )
+        content["audiovisual_plan"]["scenes"] = updated_scenes
+        pending_count = sum(1 for s in updated_scenes if s.get("media_asset_status") != "ASSET_READY")
+        content["production_checklist"]["pending_items"] = (
+            [f"Selecionar/captar mídia legítima para {pending_count} cena(s) em ASSET_NEEDED", "Revisão humana antes de renderização"]
+            if pending_count > 0
+            else ["Todos os ativos de cena verificados; aguardando aprovação humana para renderização"]
+        )
+        hist = pkg["version_history"]
+        hist.append({
+            "version": pkg["version"],
+            "status": pkg["status"],
+            "action": "ASSET_INTELLIGENCE_PREPARATION",
+            "pending_assets": pending_count,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE editorial_production_packages SET package_json = ?, version_history_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (json.dumps(content, ensure_ascii=False), json.dumps(hist, ensure_ascii=False), package_id),
+            )
+            conn.commit()
+        validation = self.validate_package_and_store(package_id)
+        return {
+            "package": self.get_package(package_id),
+            "pending_assets_count": pending_count,
+            "incompatibilities": incompatibilities,
+            "validation": validation,
+        }
+
+    def assign_asset_to_scene(self, package_id: int, scene_index: int, asset_id: int) -> Dict[str, Any]:
+        """Associa um ativo da biblioteca à cena validando integridade, licença e autorização do canal."""
+        pkg = self.get_package(package_id)
+        if not pkg:
+            raise ValueError(f"Pacote {package_id} não encontrado.")
+        aie = AssetIntelligenceEngine(db_path=str(self.db_path))
+        ast = aie.get_asset(int(asset_id))
+        if not ast:
+            raise ValueError(f"Ativo {asset_id} não encontrado na biblioteca.")
+        if ast["validation_status"] != "VALID":
+            raise ValueError(f"Ativo {asset_id} inválido ({ast['validation_status']}).")
+        if ast["license_status"] not in VERIFIED_LICENSE_STATUSES:
+            raise ValueError(f"Ativo {asset_id} possui licença não verificada ({ast['license_status']}).")
+        if int(pkg["channel_id"]) not in (ast.get("authorized_channels") or []):
+            raise ValueError(f"Ativo {asset_id} não autorizado para o canal {pkg['channel_id']}.")
+
+        content = pkg["package"]
+        scenes = content.get("audiovisual_plan", {}).get("scenes", [])
+        found = False
+        for sc in scenes:
+            if int(sc.get("scene_index", 0)) == int(scene_index):
+                sc["asset_id"] = ast["id"]
+                sc["asset_path"] = ast["file_path"]
+                sc["license_status"] = ast["license_status"]
+                sc["media_asset_status"] = "ASSET_READY"
+                found = True
+                break
+        if not found:
+            raise ValueError(f"Cena {scene_index} não encontrada no pacote {package_id}.")
+
+        hist = pkg["version_history"]
+        hist.append({
+            "version": pkg["version"],
+            "status": pkg["status"],
+            "action": f"ASSIGN_ASSET_SCENE_{scene_index}_ASSET_{asset_id}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE editorial_production_packages SET package_json = ?, version_history_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (json.dumps(content, ensure_ascii=False), json.dumps(hist, ensure_ascii=False), package_id),
+            )
+            conn.commit()
+        validation = self.validate_package_and_store(package_id)
+        return {"package": self.get_package(package_id), "validation": validation}
+
+    def upgrade_package_script(self, package_id: int, note: str = "Correção editorial Fase 24") -> Dict[str, Any]:
+        """Atualiza roteiro incompleto/template preservando histórico e sem auto-aprovar."""
+        pkg = self.get_package(package_id)
+        if not pkg:
+            raise ValueError(f"Pacote {package_id} não encontrado.")
+        ch_id = int(pkg["channel_id"])
+        ident = self.get_channel_identity(ch_id)
+        dur = float(pkg.get("target_duration_sec") or 35.0)
+        mem_ctx = self._collect_applied_memories(ch_id)
+        content = pkg["package"]
+        ref_info = content.get("reference_used") or {"status": "NO_REFERENCE_PROVIDED"}
+
+        new_script = build_complete_script(
+            channel_id=ch_id,
+            theme=pkg["theme"],
+            target_duration_sec=dur,
+            channel_identity=ident,
+            mem_ctx=mem_ctx,
+            ref_info=ref_info,
+        )
+        content["script"] = new_script
+        content["audio_plan"]["narration_text"] = new_script["full_narration"]
+        stage_cues = [
+            new_script["hook"][:90],
+            new_script["context"][:90],
+            new_script["development"][:90],
+            new_script["climax"][:90],
+            new_script["closing"][:90],
+            new_script["cta"][:90],
+        ]
+        scenes = content.get("audiovisual_plan", {}).get("scenes", [])
+        for idx, sc in enumerate(scenes):
+            cue_text = stage_cues[min(idx, len(stage_cues) - 1)]
+            sc["visual_description"] = f"{sc.get('stage', 'Cena')} ({ident['visual_style']}): {cue_text}"
+            sc["media_requirements"] = AssetIntelligenceEngine.analyze_scene_requirements(sc, ch_id, pkg["theme"])
+
+        hist = pkg["version_history"]
+        hist.append({
+            "version": pkg["version"],
+            "status": pkg["status"],
+            "action": "SCRIPT_UPGRADED_PHASE24",
+            "note": note,
+            "previous_hook": (pkg["package"].get("script") or {}).get("hook"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE editorial_production_packages SET package_json = ?, version_history_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (json.dumps(content, ensure_ascii=False), json.dumps(hist, ensure_ascii=False), package_id),
+            )
+            conn.commit()
+        validation = self.validate_package_and_store(package_id)
+        return {"package": self.get_package(package_id), "validation": validation}

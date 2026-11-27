@@ -2786,16 +2786,22 @@
           <button class="btn btn-sm btn-primary" onclick="approveProdPackage(${p.id})">Aprovar para Produção</button>
           <button class="btn btn-sm" onclick="requestChangesProdPackage(${p.id})">Solicitar Alterações</button>
           <button class="btn btn-sm btn-danger" onclick="rejectProdPackage(${p.id})">Rejeitar Pacote</button>
+          <button class="btn btn-sm" onclick="validateProdPackage(${p.id})">Revalidar Editorial</button>
+          <button class="btn btn-sm" onclick="prepareProdAssets(${p.id})">Preparar Assets</button>
+          <button class="btn btn-sm" onclick="compareProdWithPrev(${p.id})">Comparar Versão</button>
         </div>
+        <div id="prod-val-box-${p.id}" style="margin:6px 0; padding:6px; background:rgba(255,255,255,0.03); border-radius:4px; font-size:12px;">Clique em "Revalidar Editorial" para ver pontuação explicável e pendências.</div>
         <em>Hook:</em> <input id="edit-hook-${p.id}" class="form-input" style="width:100%; margin:4px 0;" value="${(pkg.script?.hook || '').replace(/"/g, '&quot;')}" />
-        <button class="btn btn-sm" onclick="saveHookEdit(${p.id})">Salvar Edição Manual</button><br><br>
-        <strong>Desenvolvimento:</strong> ${pkg.script?.development || ''}<br>
-        <strong>Clímax / Virada:</strong> ${pkg.script?.turning_point || pkg.script?.climax || '—'}<br>
-        <strong>CTA:</strong> ${pkg.script?.cta || '—'}<br>
-        <strong>Narração Completa:</strong> <div style="opacity:0.9; margin:4px 0 8px 0;">${pkg.audio_plan?.narration_text || '—'}</div>
-        <strong>Cenas & Assets Necessários (${scenes.length}):</strong>
+        <em>Contexto:</em> <input id="edit-context-${p.id}" class="form-input" style="width:100%; margin:4px 0;" value="${(pkg.script?.context || '').replace(/"/g, '&quot;')}" />
+        <em>Desenvolvimento:</em> <input id="edit-dev-${p.id}" class="form-input" style="width:100%; margin:4px 0;" value="${(pkg.script?.development || '').replace(/"/g, '&quot;')}" />
+        <em>Clímax / Virada:</em> <input id="edit-climax-${p.id}" class="form-input" style="width:100%; margin:4px 0;" value="${(pkg.script?.climax || pkg.script?.turning_point || '').replace(/"/g, '&quot;')}" />
+        <em>Encerramento:</em> <input id="edit-closing-${p.id}" class="form-input" style="width:100%; margin:4px 0;" value="${(pkg.script?.closing || '').replace(/"/g, '&quot;')}" />
+        <em>CTA:</em> <input id="edit-cta-${p.id}" class="form-input" style="width:100%; margin:4px 0;" value="${(pkg.script?.cta || '').replace(/"/g, '&quot;')}" />
+        <button class="btn btn-sm" onclick="saveHookEdit(${p.id})">Salvar Roteiro Editado</button><br><br>
+        <strong>Narração Completa:</strong> <div style="opacity:0.9; margin:4px 0 8px 0;">${pkg.audio_plan?.narration_text || pkg.script?.full_narration || '—'}</div>
+        <strong>Cenas, Licenciamento & Assets Necessários (${scenes.length}):</strong>
         <ul style="margin:4px 0 8px 18px;">
-          ${scenes.map(s => `<li><strong>Cena ${s.scene_index} (${s.stage}, ${s.estimated_duration_sec}s)</strong> — <span class="badge">${s.media_asset_status || 'ASSET_NEEDED'}</span> ${s.asset_path ? `[<code>${s.asset_path}</code>]` : ''} : ${s.visual_description || ''}</li>`).join('')}
+          ${scenes.map(s => `<li><strong>Cena ${s.scene_index} (${s.stage}, ${s.estimated_duration_sec}s)</strong> — <span class="badge">${s.media_asset_status || 'ASSET_NEEDED'}</span> | Licença: <code>${s.license_status || 'PENDING'}</code> ${s.asset_path ? `[<code>${s.asset_path}</code>]` : ''} : ${s.visual_description || ''} <button class="btn btn-sm" onclick="promptAssignAsset(${p.id}, ${s.scene_index})">Associar Asset ID</button></li>`).join('')}
         </ul>
         <strong>Áudio:</strong> ${pkg.audio_plan?.tone || ''} | ${pkg.audio_plan?.music_ambience_royalty_free || ''}<br>
         <strong>Recomendações Editoriais:</strong> ${Array.isArray(recs) && recs.length ? recs.join(' • ') : (typeof recs === 'string' ? recs : 'Nenhuma adicional')}<br>
@@ -2803,11 +2809,52 @@
     }
     async function saveHookEdit(id) {
       const hook = document.getElementById(`edit-hook-${id}`)?.value || '';
+      const context = document.getElementById(`edit-context-${id}`)?.value || '';
+      const development = document.getElementById(`edit-dev-${id}`)?.value || '';
+      const climax = document.getElementById(`edit-climax-${id}`)?.value || '';
+      const closing = document.getElementById(`edit-closing-${id}`)?.value || '';
+      const cta = document.getElementById(`edit-cta-${id}`)?.value || '';
+      const full_narration = [hook, context, development, climax, closing, cta].filter(Boolean).join(' ');
       await fetch(`/api/production/packages/${id}`, {
         method: 'PUT', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({updates: {script: {hook}}, note: 'Edição manual de hook no dashboard'})
+        body: JSON.stringify({updates: {script: {hook, context, development, climax, closing, cta, full_narration}, audio_plan: {narration_text: full_narration}}, note: 'Edição completa de roteiro no dashboard'})
       });
       await loadProdPackages();
+      await viewProdPackage(id);
+    }
+    async function validateProdPackage(id) {
+      const res = await fetch(`/api/production/packages/${id}/validate`, {method: 'POST'});
+      const rep = await res.json();
+      const vb = document.getElementById(`prod-val-box-${id}`);
+      if (vb) {
+        vb.innerHTML = `<strong>Validação:</strong> <span class="badge">${rep.classification}</span> | Score: <strong>${rep.quality_score}%</strong><br>` +
+          (rep.failures?.length ? `<span style="color:#ff7b72;">Falhas: ${rep.failures.join(' | ')}</span><br>` : '') +
+          (rep.warnings?.length ? `<span style="color:#e3b341;">Pendências: ${rep.warnings.join(' | ')}</span>` : 'Sem pendências.');
+      }
+    }
+    async function prepareProdAssets(id) {
+      await fetch(`/api/production/packages/${id}/prepare-assets`, {method: 'POST'});
+      await viewProdPackage(id);
+      await validateProdPackage(id);
+    }
+    async function promptAssignAsset(pkgId, sceneIdx) {
+      const assetId = prompt(`Informe o ID numérico do ativo verificado para a Cena ${sceneIdx}:`);
+      if (!assetId || !assetId.trim()) return;
+      const res = await fetch(`/api/production/packages/${pkgId}/scenes/${sceneIdx}/assign-asset`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({asset_id: Number(assetId.trim())})
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.detail || 'Erro ao associar ativo.'); return; }
+      await viewProdPackage(pkgId);
+      await validateProdPackage(pkgId);
+    }
+    async function compareProdWithPrev(id) {
+      const other = prompt('Informe o ID do outro pacote/versão para comparar:');
+      if (!other || !other.trim()) return;
+      const res = await fetch(`/api/production/packages/compare?id_a=${id}&id_b=${Number(other.trim())}`);
+      if (!res.ok) { alert('Pacotes não encontrados para comparação.'); return; }
+      const cmp = await res.json();
+      alert(`Comparação #${id} vs #${other}: hook_changed=${cmp.hook_changed}, script_changed=${cmp.script_changed}, scenes_changed=${cmp.scenes_changed}`);
     }
     async function duplicateProdPackage(id) {
       await fetch(`/api/production/packages/${id}/duplicate`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
