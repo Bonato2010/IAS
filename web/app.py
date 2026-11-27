@@ -1711,6 +1711,56 @@ def acquire_wikimedia_asset(payload: Dict[str, Any]):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+def _get_brand_registry():
+    from services.production.brand_registry import BrandRegistryService
+    return BrandRegistryService(db_path=learning_system.db_path)
+
+@app.get("/api/brands")
+def list_brands():
+    return {"brands": _get_brand_registry().list_brands()}
+
+@app.get("/api/brands/check-handle")
+def check_brand_handle(handle: str):
+    return _get_brand_registry().check_handle_availability(handle)
+
+@app.put("/api/brands/{channel_id}")
+def update_brand(channel_id: int, payload: Dict[str, Any]):
+    try:
+        return _get_brand_registry().update_brand_identity(
+            channel_id=channel_id,
+            brand_name=payload.get("brand_name"),
+            branding_config=payload.get("branding_config"),
+            editorial_identity=payload.get("editorial_identity"),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/brands/{channel_id}/youtube-registry")
+def register_youtube_channel(channel_id: int, payload: Dict[str, Any]):
+    try:
+        return _get_brand_registry().register_youtube_channel(
+            channel_id=channel_id,
+            youtube_channel_id=str(payload.get("youtube_channel_id", "")),
+            youtube_handle=str(payload.get("youtube_handle", "")),
+            youtube_url=str(payload.get("youtube_url", "")),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/brands/{channel_id}/oauth-check")
+def check_brand_oauth(channel_id: int):
+    try:
+        return _get_brand_registry().verify_oauth_connection(channel_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/api/production/packages/{package_id}/publish-metadata")
+def get_package_publish_metadata(package_id: int):
+    try:
+        return _get_brand_registry().prepare_publish_metadata(package_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 # Servir Frontend
 static_dir = Path(__file__).resolve().parent / "static"
 static_dir.mkdir(parents=True, exist_ok=True)

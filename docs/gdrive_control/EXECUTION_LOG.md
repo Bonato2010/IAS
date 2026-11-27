@@ -231,3 +231,8 @@
 - **Correções Técnicas:** Vozes Edge-TTS ativas nos 5 canais + retry (`tts_engine.py`), `APPROVED_AFTER_REVIEW` (`package_renderer.py`), clareza de estados no dashboard e desempate por recência em `vector_memory.py`.
 - **Piloto 5 Canais:** `#7` (`6/6`, renderizado), `#1` (`4/6`, bloqueado), `#3` (`2/6`, bloqueado), `#5` (`0/6`, bloqueado), `#9` (`0/6`, bloqueado).
 - **Testes:** `test_fase26_multichannel_validation.py` (`5/5`, `104.02s`) + regressão `28/28` suítes (`224/224`, `100.0%`, `1018.89s`). Relatório: `docs/audits/FASE26_MULTICHANNEL_VALIDATION.md`. Custo: **US$ 0,00**.
+
+### [2026-11-27] Fase 27 — Identidade das 5 Marcas, Cadastro Real dos Canais e Preparação para Publicação
+- **Marcas & Registro Real (`services/production/brand_registry.py` + `012_brand_identity_and_youtube_registry.sql`):** Configuradas as 5 marcas candidatas preservando categorias históricas; 4 handles diretos retornaram `HTTP 200` no YouTube e `@dossieoculto` retornou `HTTP 404` (`AVAILABILITY_UNVERIFIED`); todos os 5 canais permanecem em `CHANNEL_NOT_CREATED` / `OAUTH_DISCONNECTED`.
+- **Dashboard & API:** Painel **Marcas, Canais Reais & Prontidão YouTube (Fase 27)** e endpoints `/api/brands*` + `/api/production/packages/{id}/publish-metadata`.
+- **Testes:** `test_fase27_brand_identity_and_youtube_registry.py` (`5/5`) + regressão `29/29` suítes (`229/229`, `100.0%`, `699.69s`). Relatório: `docs/audits/FASE27_BRAND_IDENTITY_AND_YOUTUBE_REGISTRY.md`. Custo: **US$ 0,00**.

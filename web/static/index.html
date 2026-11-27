@@ -819,6 +819,20 @@
         </div>
       </div>
 
+      <!-- MARCAS, CANAIS REAIS & PRONTIDÃO YOUTUBE (FASE 27) -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <div>
+            <span class="panel-title"><i class="fa-solid fa-tv" style="color:var(--accent-blue);"></i> Marcas, Canais Reais & Prontidão YouTube (Fase 27)</span>
+            <div style="font-size:0.78rem; color:var(--text-tertiary); margin-top:2px;">
+              Distingue marca configurada (nome candidato) de canal real criado no YouTube e conexão OAuth.
+            </div>
+          </div>
+          <button class="btn btn-sm" onclick="loadBrandRegistry()">Atualizar Marcas</button>
+        </div>
+        <div id="brands-registry-list" style="padding:10px; font-size:0.8rem; color:var(--text-secondary);">Carregando marcas...</div>
+      </div>
+
       <!-- BIBLIOTECA DE CONHECIMENTO EDITORIAL -->
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-header">
@@ -2987,6 +3001,62 @@
           </div>`;
         }).join('');
       } catch (e) { box.innerText = 'Erro ao carregar renders.'; }
+    }
+    async function loadBrandRegistry() {
+      const box = document.getElementById('brands-registry-list');
+      if (!box) return;
+      try {
+        const res = await fetch('/api/brands');
+        const data = await res.json();
+        const brands = data.brands || [];
+        box.innerHTML = brands.map(b => `
+          <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.08);">
+            <strong>Ch${b.channel_id} — Marca: ${b.brand_name}</strong> | Categoria: <code>${b.editorial_category}</code> | Histórico: <small>${b.legacy_channel_name}</small><br>
+            <div style="margin:4px 0;">
+              Canal YouTube: <span class="badge">${b.channel_exists_on_youtube ? 'CANAL REGISTRADO' : 'NÃO CRIADO'}</span>
+              | Estado: <span class="badge">${b.channel_status}</span>
+              | OAuth: <span class="badge">${b.oauth_status}</span>
+              | Disponibilidade Handle: <span class="badge">${b.name_availability_status}</span>
+            </div>
+            <div>ID: <code>${b.youtube_channel_id || 'Não criado'}</code> | Handle: <code>${b.youtube_handle || '—'}</code> | URL: ${b.youtube_url ? `<a href="${b.youtube_url}" target="_blank">${b.youtube_url}</a>` : '—'}</div>
+            <div><small>Paleta: ${(b.branding_config?.color_palette || []).join(', ')} | Tipografia: ${b.branding_config?.typography || ''} | Aprovação Visual: ${b.branding_config?.visual_approval_status || 'PENDING_HUMAN_APPROVAL'}</small></div>
+            <div><small>Próximo passo: ${b.next_step || '—'}</small></div>
+            <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn btn-sm" onclick="editBrandName(${b.channel_id}, '${(b.brand_name || '').replace(/'/g, "\\'")}')">Editar Marca</button>
+              <button class="btn btn-sm" onclick="registerYoutubeChannelPrompt(${b.channel_id})">Registrar Canal Real</button>
+              <button class="btn btn-sm" onclick="verifyBrandOAuth(${b.channel_id})">Verificar OAuth</button>
+            </div>
+          </div>`).join('');
+      } catch (e) { box.innerText = 'Erro ao carregar marcas.'; }
+    }
+    async function editBrandName(chId, currentName) {
+      const name = prompt('Novo nome da marca:', currentName);
+      if (!name || !name.trim()) return;
+      await fetch(`/api/brands/${chId}`, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({brand_name: name.trim()})
+      });
+      await loadBrandRegistry();
+    }
+    async function registerYoutubeChannelPrompt(chId) {
+      const ytId = prompt('Informe o YouTube Channel ID real (formato UC...):');
+      if (!ytId) return;
+      const handle = prompt('Informe o Handle real (ex: @meuhandle):');
+      if (!handle) return;
+      const url = prompt('Informe a URL oficial (https://www.youtube.com/@meuhandle):');
+      if (!url) return;
+      const res = await fetch(`/api/brands/${chId}/youtube-registry`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({youtube_channel_id: ytId, youtube_handle: handle, youtube_url: url})
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.detail || 'Dados inválidos.'); return; }
+      await loadBrandRegistry();
+    }
+    async function verifyBrandOAuth(chId) {
+      const res = await fetch(`/api/brands/${chId}/oauth-check`, {method: 'POST'});
+      const out = await res.json();
+      alert(`Canal ${chId}: OAuth = ${out.oauth_status} | Estado = ${out.channel_status}`);
+      await loadBrandRegistry();
     }
   </script>
 </body>
